@@ -1,52 +1,146 @@
 <x-guest-layout>
+    @section('title', 'Register | Grey Stone Admin')
+
+    <div class="auth-form-header">
+        <h2>Create account</h2>
+
+        <p>
+            Create an account to access the Grey Stone management portal.
+        </p>
+    </div>
+
     <form method="POST" action="{{ route('register') }}">
         @csrf
 
-        <!-- Name -->
-        <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
-            <x-input-error :messages="$errors->get('name')" class="mt-2" />
+        <div class="auth-field">
+            <label for="name" class="auth-label">
+                Full name
+            </label>
+
+            <input
+                id="name"
+                class="auth-input"
+                type="text"
+                name="name"
+                value="{{ old('name') }}"
+                placeholder="Enter your full name"
+                required
+                autofocus
+                autocomplete="name"
+            >
+
+            @if ($errors->has('name'))
+                <ul class="auth-error">
+                    @foreach ($errors->get('name') as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
 
-        <!-- Email Address -->
-        <div class="mt-4">
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
+        <div class="auth-field">
+            <label for="email" class="auth-label">
+                Email address
+            </label>
+
+            <input
+                id="email"
+                class="auth-input"
+                type="email"
+                name="email"
+                value="{{ old('email') }}"
+                placeholder="Enter your email"
+                required
+                autocomplete="username"
+            >
+
+            @if ($errors->has('email'))
+                <ul class="auth-error">
+                    @foreach ($errors->get('email') as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
+        <div class="auth-field">
+            <label for="password" class="auth-label">
+                Password
+            </label>
 
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="new-password" />
+            <div class="auth-input-wrap">
+                <input
+                    id="password"
+                    class="auth-input has-password-toggle"
+                    type="password"
+                    name="password"
+                    placeholder="Create a password"
+                    required
+                    autocomplete="new-password"
+                >
 
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
+                <button
+                    type="button"
+                    class="password-toggle"
+                    data-password-toggle="password"
+                >
+                    Show
+                </button>
+            </div>
+
+            @if ($errors->has('password'))
+                <ul class="auth-error">
+                    @foreach ($errors->get('password') as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
 
-        <!-- Confirm Password -->
-        <div class="mt-4">
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
+        <div class="auth-field">
+            <label for="password_confirmation" class="auth-label">
+                Confirm password
+            </label>
 
-            <x-text-input id="password_confirmation" class="block mt-1 w-full"
-                            type="password"
-                            name="password_confirmation" required autocomplete="new-password" />
+            <div class="auth-input-wrap">
+                <input
+                    id="password_confirmation"
+                    class="auth-input has-password-toggle"
+                    type="password"
+                    name="password_confirmation"
+                    placeholder="Enter the password again"
+                    required
+                    autocomplete="new-password"
+                >
 
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+                <button
+                    type="button"
+                    class="password-toggle"
+                    data-password-toggle="password_confirmation"
+                >
+                    Show
+                </button>
+            </div>
+
+            @if ($errors->has('password_confirmation'))
+                <ul class="auth-error">
+                    @foreach ($errors->get('password_confirmation') as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
 
-        <div class="flex items-center justify-end mt-4">
-            <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('login') }}">
-                {{ __('Already registered?') }}
+        <button type="submit" class="auth-submit">
+            Create account
+        </button>
+
+        <p class="auth-switch-text">
+            Already have an account?
+
+            <a href="{{ route('login') }}">
+                Sign in
             </a>
-
-            <x-primary-button class="ms-4">
-                {{ __('Register') }}
-            </x-primary-button>
-        </div>
+        </p>
     </form>
 </x-guest-layout>

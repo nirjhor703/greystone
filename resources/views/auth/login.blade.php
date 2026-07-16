@@ -1,47 +1,117 @@
 <x-guest-layout>
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+    @section('title', 'Login | Grey Stone Admin')
+
+    <div class="auth-form-header">
+        <h2>Welcome back</h2>
+
+        <p>
+            Sign in to continue to the Grey Stone management dashboard.
+        </p>
+    </div>
+
+    @if (session('status'))
+        <div class="auth-session-status">
+            {{ session('status') }}
+        </div>
+    @endif
 
     <form method="POST" action="{{ route('login') }}">
         @csrf
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
-
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password" />
-
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
-
-        <!-- Remember Me -->
-        <div class="block mt-4">
-            <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="remember">
-                <span class="ms-2 text-sm text-gray-600">{{ __('Remember me') }}</span>
+        <div class="auth-field">
+            <label for="email" class="auth-label">
+                Email address
             </label>
+
+            <input
+                id="email"
+                class="auth-input"
+                type="email"
+                name="email"
+                value="{{ old('email') }}"
+                placeholder="Enter your email"
+                required
+                autofocus
+                autocomplete="username"
+            >
+
+            @if ($errors->has('email'))
+                <ul class="auth-error">
+                    @foreach ($errors->get('email') as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
 
-        <div class="flex items-center justify-end mt-4">
+        <div class="auth-field">
+            <label for="password" class="auth-label">
+                Password
+            </label>
+
+            <div class="auth-input-wrap">
+                <input
+                    id="password"
+                    class="auth-input has-password-toggle"
+                    type="password"
+                    name="password"
+                    placeholder="Enter your password"
+                    required
+                    autocomplete="current-password"
+                >
+
+                <button
+                    type="button"
+                    class="password-toggle"
+                    data-password-toggle="password"
+                >
+                    Show
+                </button>
+            </div>
+
+            @if ($errors->has('password'))
+                <ul class="auth-error">
+                    @foreach ($errors->get('password') as $message)
+                        <li>{{ $message }}</li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
+
+        <div class="auth-row">
+            <label for="remember_me" class="auth-checkbox-label">
+                <input
+                    id="remember_me"
+                    class="auth-checkbox"
+                    type="checkbox"
+                    name="remember"
+                >
+
+                <span>Remember me</span>
+            </label>
+
             @if (Route::has('password.request'))
-                <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('password.request') }}">
-                    {{ __('Forgot your password?') }}
+                <a
+                    href="{{ route('password.request') }}"
+                    class="auth-link"
+                >
+                    Forgot password?
                 </a>
             @endif
-
-            <x-primary-button class="ms-3">
-                {{ __('Log in') }}
-            </x-primary-button>
         </div>
+
+        <button type="submit" class="auth-submit">
+            Sign in
+        </button>
+
+        @if (Route::has('register'))
+            <p class="auth-switch-text">
+                Don’t have an account?
+
+                <a href="{{ route('register') }}">
+                    Create account
+                </a>
+            </p>
+        @endif
     </form>
 </x-guest-layout>

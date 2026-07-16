@@ -1,30 +1,88 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+    <title>@yield('title', 'Grey Stone')</title>
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link
+        href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap"
+        rel="stylesheet"
+    >
 
-        <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="font-sans text-gray-900 antialiased">
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100">
-            <div>
-                <a href="/">
-                    <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
-                </a>
+    @vite([
+        'resources/css/app.css',
+        'resources/js/app.js'
+    ])
+</head>
+
+<body>
+    <main class="auth-page">
+        <section class="auth-showcase">
+            <a href="{{ url('/') }}" class="auth-logo">
+                <span class="auth-logo-mark">GS</span>
+
+                <span class="auth-logo-content">
+                    <strong>GREY STONE</strong>
+                    <small>Management Portal</small>
+                </span>
+            </a>
+
+            <div class="auth-showcase-content">
+                <span class="auth-tagline">Multi-brand commerce</span>
+
+                <h1>
+                    One system.<br>
+                    Three identities.
+                </h1>
+
+                <p>
+                    Manage Grey Stone, Blue Shades and Pink Touch through one
+                    secure and unified business dashboard.
+                </p>
             </div>
 
-            <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg">
+            <p class="auth-copyright">
+                © {{ date('Y') }} Grey Stone. All rights reserved.
+            </p>
+        </section>
+
+        <section class="auth-form-section">
+            <div class="auth-form-container">
+                <a href="{{ url('/') }}" class="auth-mobile-logo">
+                    <span class="auth-logo-mark">GS</span>
+
+                    <span class="auth-logo-content">
+                        <strong>GREY STONE</strong>
+                        <small>Management Portal</small>
+                    </span>
+                </a>
+
                 {{ $slot }}
             </div>
-        </div>
-    </body>
+        </section>
+    </main>
+
+    <script>
+        document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const input = document.getElementById(
+                    button.dataset.passwordToggle
+                );
+
+                if (!input) {
+                    return;
+                }
+
+                const passwordHidden = input.type === 'password';
+
+                input.type = passwordHidden ? 'text' : 'password';
+                button.textContent = passwordHidden ? 'Hide' : 'Show';
+            });
+        });
+    </script>
+</body>
 </html>
