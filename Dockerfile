@@ -47,12 +47,16 @@ RUN npm ci
 RUN npm run build
 
 # Laravel permissions
-RUN mkdir -p storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/views \
-    storage/logs \
-    bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache
+RUN chown -R www-data:www-data \
+    /var/www/html/storage \
+    /var/www/html/bootstrap/cache
+
+# Aiven MySQL CA certificate
+COPY docker/aiven-ca.pem /etc/ssl/certs/aiven-ca.pem
+
+# Verify Aiven CA certificate exists
+RUN ls -lah /etc/ssl/certs/aiven-ca.pem \
+    && head -n 2 /etc/ssl/certs/aiven-ca.pem
 
 # Nginx configuration
 COPY docker/nginx.conf /etc/nginx/sites-available/default
