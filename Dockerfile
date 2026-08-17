@@ -39,14 +39,20 @@ COPY . .
 RUN composer install \
     --no-dev \
     --optimize-autoloader \
-    --no-interaction
+    --no-interaction \
+    --prefer-dist
 
 # Install frontend dependencies and build
-RUN npm install
+RUN npm ci
 RUN npm run build
 
 # Laravel permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN mkdir -p storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
 
 # Nginx configuration
 COPY docker/nginx.conf /etc/nginx/sites-available/default
