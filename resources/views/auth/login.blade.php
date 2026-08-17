@@ -103,15 +103,5 @@
         <button type="submit" class="auth-submit">
             Sign in
         </button>
-
-        @if (Route::has('register'))
-            <p class="auth-switch-text">
-                Don’t have an account?
-
-                <a href="{{ route('register') }}">
-                    Create account
-                </a>
-            </p>
-        @endif
     </form>
 </x-guest-layout>

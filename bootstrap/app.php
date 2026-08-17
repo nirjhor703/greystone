@@ -11,8 +11,30 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'admin.active' => \App\Http\Middleware\EnsureAdminIsActive::class,
+            'admin.permission' => \App\Http\Middleware\EnsureAdminPermission::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (
+            \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $exception,
+            \Illuminate\Http\Request $request
+        ) {
+            if (
+                $exception->getStatusCode() === 403
+                && $request->is('admin/*')
+                && ! $request->expectsJson()
+                && $request->headers->has('referer')
+            ) {
+                return redirect()
+                    ->back()
+                    ->withErrors([
+                        'admin_permission' => $exception->getMessage()
+                            ?: 'You do not have permission to perform this action.',
+                    ]);
+            }
+
+            return null;
+        });
     })->create();
