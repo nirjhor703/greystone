@@ -837,40 +837,42 @@
                     </div>
                 </div>
 
-                <div class="store-category-control-row">
-                    <div
-                        class="store-audience-toggle"
-                        id="storeAudienceToggle"
-                        data-active-audience="{{ $defaultAudience }}"
-                        aria-label="Choose product audience"
-                    >
-                        <span
-                            class="store-audience-toggle-thumb"
-                            aria-hidden="true"
-                        ></span>
+                <div class="store-category-sticky-anchor">
+                    <div class="store-category-sticky-stack">
+                        <div class="store-category-control-row">
+                            <div
+                                class="store-audience-toggle"
+                                id="storeAudienceToggle"
+                                data-active-audience="{{ $defaultAudience }}"
+                                aria-label="Choose product audience"
+                            >
+                                <span
+                                    class="store-audience-toggle-thumb"
+                                    aria-hidden="true"
+                                ></span>
 
-                        <button
-                            type="button"
-                            class="{{ $defaultAudience === 'men' ? 'active' : '' }}"
-                            data-audience-filter="men"
-                            aria-pressed="{{ $defaultAudience === 'men' ? 'true' : 'false' }}"
-                        >
-                            Men
-                        </button>
+                                <button
+                                    type="button"
+                                    class="{{ $defaultAudience === 'men' ? 'active' : '' }}"
+                                    data-audience-filter="men"
+                                    aria-pressed="{{ $defaultAudience === 'men' ? 'true' : 'false' }}"
+                                >
+                                    Men
+                                </button>
 
-                        <button
-                            type="button"
-                            class="{{ $defaultAudience === 'women' ? 'active' : '' }}"
-                            data-audience-filter="women"
-                            aria-pressed="{{ $defaultAudience === 'women' ? 'true' : 'false' }}"
-                        >
-                            Women
-                        </button>
-                    </div>
-                </div>
+                                <button
+                                    type="button"
+                                    class="{{ $defaultAudience === 'women' ? 'active' : '' }}"
+                                    data-audience-filter="women"
+                                    aria-pressed="{{ $defaultAudience === 'women' ? 'true' : 'false' }}"
+                                >
+                                    Women
+                                </button>
+                            </div>
+                        </div>
 
-                <div class="store-category-sticky-shell">
-                    <div class="store-category-grid store-category-wheel">
+                        <div class="store-category-sticky-shell">
+                            <div class="store-category-grid store-category-wheel">
                         <a
                             href="{{ route('brand.show', array_filter([
                                 'slug' => $brand->slug,
@@ -956,6 +958,8 @@
                                 </div>
                             </div>
                         @endforelse
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1295,20 +1299,17 @@
             <i class="fa-regular fa-user"></i>
             <span>Account</span>
         </a>
-
-        <button
-            type="button"
-            id="storeDockBackButton"
-            class="store-bottom-dock-action"
-            data-dock-key="back"
-            data-dock-action
-            aria-label="Go back"
-            data-previous-url="{{ $productsPagination?->previousPageUrl() ? $productsPagination->previousPageUrl().'#products' : '' }}"
-        >
-            <i class="fa-solid fa-arrow-left"></i>
-            <span>Back</span>
-        </button>
     </nav>
+
+    <button
+        type="button"
+        id="storeDockBackButton"
+        class="store-floating-back-button"
+        aria-label="Go back"
+        data-previous-url="{{ $productsPagination?->previousPageUrl() ? $productsPagination->previousPageUrl().'#products' : '' }}"
+    >
+        <i class="fa-solid fa-arrow-left"></i>
+    </button>
 </div>
 
 @include('storefront.partials.variant-modal')
@@ -1456,10 +1457,6 @@
             '.store-new-arrival-viewport'
         );
 
-        const categoryStickyShell = document.querySelector(
-            '.store-category-sticky-shell'
-        );
-
         const featuredSlider = document.getElementById(
             'storeFeaturedSlider'
         );
@@ -1470,10 +1467,6 @@
 
         const featuredSliderNext = document.querySelector(
             '[data-featured-slider-next]'
-        );
-
-        const productGrid = document.getElementById(
-            'storeProductGrid'
         );
 
         const menuCategoryButtons = Array.from(
@@ -2334,7 +2327,12 @@
                 : scrollDelta < 0
                     ? 'down'
                     : null;
-            const productGridRect = productGrid?.getBoundingClientRect();
+            const activeProductGrid = document.getElementById(
+                'storeProductGrid'
+            );
+
+            const productGridRect =
+                activeProductGrid?.getBoundingClientRect();
             const productFixedTop =
                 window.innerWidth <= 820
                     ? 18
@@ -2349,7 +2347,28 @@
                 hasScrolled
             );
 
-            categoryStickyShell?.classList.toggle(
+            const activeCategoryStickyShell = document.querySelector(
+                '.store-category-sticky-stack'
+            );
+
+            const activeCategoryStickyAnchor =
+                activeCategoryStickyShell?.closest(
+                    '.store-category-sticky-anchor'
+                );
+
+            if (
+                activeCategoryStickyShell
+                && activeCategoryStickyAnchor
+            ) {
+                if (shouldFixCategories) {
+                    activeCategoryStickyAnchor.style.height =
+                        `${activeCategoryStickyShell.offsetHeight}px`;
+                } else {
+                    activeCategoryStickyAnchor.style.height = '';
+                }
+            }
+
+            activeCategoryStickyShell?.classList.toggle(
                 'is-product-fixed',
                 shouldFixCategories
             );
@@ -2357,6 +2376,11 @@
             storeBottomDock?.classList.toggle(
                 'show',
                 hasScrolled
+            );
+
+            dockBackButton?.classList.toggle(
+                'show',
+                shouldFixCategories
             );
 
             if (hasScrolled && storeBottomDock?.classList.contains('show')) {
@@ -2445,13 +2469,28 @@
                     dockBackButton.dataset.previousUrl || ''
                 ).trim();
 
-                if (previousUrl) {
-                    window.location.href = previousUrl;
+                const sameOriginReferrer =
+                    document.referrer
+                    && (() => {
+                        try {
+                            return new URL(
+                                document.referrer
+                            ).origin === window.location.origin;
+                        } catch (error) {
+                            return false;
+                        }
+                    })();
+
+                if (
+                    sameOriginReferrer
+                    && window.history.length > 1
+                ) {
+                    window.history.back();
                     return;
                 }
 
-                if (window.history.length > 1) {
-                    window.history.back();
+                if (previousUrl) {
+                    window.location.href = previousUrl;
                     return;
                 }
 

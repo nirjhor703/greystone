@@ -99,9 +99,14 @@
         }
 
         .detail-color-options {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(4, 78px);
+            justify-content: start;
+            align-items: start;
             gap: 12px;
+            width: max-content;
+            max-width: 100%;
+            margin: 0;
         }
 
         .detail-color-option {
@@ -110,7 +115,9 @@
             flex-direction: column;
             justify-content: flex-start;
             gap: 7px;
-            min-width: 64px;
+            flex: 0 0 78px;
+            width: 78px;
+            min-width: 78px;
             padding: 0;
             color: #111827;
             background: transparent;
@@ -135,9 +142,15 @@
         }
 
         .detail-color-option strong {
+            display: block;
+            width: 100%;
             font-size: 11px;
             font-weight: 800;
             line-height: 1.2;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            text-wrap: balance;
         }
 
         .detail-color-option:hover {
@@ -440,7 +453,11 @@
         }
 
         @media (max-width: 640px) {
-            .detail-color-options,
+            .detail-color-options {
+                grid-template-columns: repeat(4, 78px);
+                justify-content: start;
+            }
+
             .detail-size-options {
                 grid-template-columns: repeat(
                     2,
