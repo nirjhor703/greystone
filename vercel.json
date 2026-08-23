@@ -1,19 +1,23 @@
 {
     "version": 2,
-    "builds": [
-        {
-            "src": "/api/index.php",
-            "use": "@vercel/php"
-        },
-        {
-            "src": "/public/**",
-            "use": "@vercel/static"
+    "framework": null,
+    "functions": {
+        "api/index.php": {
+            "runtime": "vercel-php@0.9.0"
         }
-    ],
+    },
     "routes": [
         {
             "src": "/build/(.*)",
             "dest": "/public/build/$1"
+        },
+        {
+            "src": "/storefront-backgrounds/(.*)",
+            "dest": "/public/storefront-backgrounds/$1"
+        },
+        {
+            "src": "/(.*\\..+)",
+            "dest": "/public/$1"
         },
         {
             "src": "/(.*)",
