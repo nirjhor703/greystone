@@ -1,6 +1,7 @@
 {
     "version": 2,
-    "framework": null,
+    "buildCommand": "npm run build",
+    "outputDirectory": "public",
     "functions": {
         "api/index.php": {
             "runtime": "vercel-php@0.9.0"
@@ -16,7 +17,7 @@
             "dest": "/public/storefront-backgrounds/$1"
         },
         {
-            "src": "/(.*\\..+)",
+            "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf))",
             "dest": "/public/$1"
         },
         {
