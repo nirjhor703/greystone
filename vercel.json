@@ -1,28 +1,15 @@
 {
-    "version": 2,
+    "$schema": "https://openapi.vercel.sh/vercel.json",
     "buildCommand": "npm run build",
-    "outputDirectory": "public",
     "functions": {
-        "api/index.php": {
-            "runtime": "vercel-php@0.9.0"
-        }
+      "api/index.php": {
+        "runtime": "vercel-php@0.9.0"
+      }
     },
-    "routes": [
-        {
-            "src": "/build/(.*)",
-            "dest": "/public/build/$1"
-        },
-        {
-            "src": "/storefront-backgrounds/(.*)",
-            "dest": "/public/storefront-backgrounds/$1"
-        },
-        {
-            "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf))",
-            "dest": "/public/$1"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/api/index.php"
-        }
+    "rewrites": [
+      {
+        "source": "/(.*)",
+        "destination": "/api/index.php"
+      }
     ]
-}
+  }
