@@ -1,7 +1,9 @@
-@import "tailwindcss";
-
 @import './auth.css';
 
 @import './admin.css';
 
 @import './storefront.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
