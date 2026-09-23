@@ -92,7 +92,7 @@
                         <th>Coupon</th>
                         <th>Brand</th>
                         <th>Discount</th>
-                        <th>Minimum</th>
+                        <th>Minimum @include('admin.partials.info-help', ['key' => 'coupon_table_minimum', 'text' => 'Coupon use korte minimum order amount.'])</th>
                         <th>Used</th>
                         <th>Status</th>
                         <th>Validity</th>

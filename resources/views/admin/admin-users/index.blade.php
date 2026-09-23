@@ -120,7 +120,7 @@
                     <th>Phone</th>
                     <th>Role</th>
                     <th>Status</th>
-                    <th>Permissions</th>
+                    <th>Permissions @include('admin.partials.info-help', ['key' => 'admin_table_permissions', 'text' => 'Ei admin kon module/action access pabe.'])</th>
                     <th>Created</th>
                     <th class="brand-actions-heading">Actions</th>
                 </tr>

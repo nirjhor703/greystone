@@ -4,7 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
-return Application::configure(basePath: dirname(__DIR__))
+$app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
@@ -38,3 +38,24 @@ return Application::configure(basePath: dirname(__DIR__))
             return null;
         });
     })->create();
+
+if (isset($_ENV['VERCEL']) || getenv('VERCEL')) {
+    $storagePath = '/tmp/greystone-storage';
+
+    foreach ([
+        'app/private',
+        'app/public',
+        'framework/cache/data',
+        'framework/sessions',
+        'framework/views',
+        'logs',
+    ] as $directory) {
+        if (! is_dir($path = $storagePath.'/'.$directory)) {
+            mkdir($path, 0755, true);
+        }
+    }
+
+    $app->useStoragePath($storagePath);
+}
+
+return $app;

@@ -76,7 +76,7 @@
                 </div>
 
                 <div class="admin-search-field">
-                    <label>Status</label>
+                    <label>Status @include('admin.partials.info-help', ['key' => 'orders_status_filter', 'text' => 'Order processing status diye filter korte use korun.'])</label>
                     <select name="status">
                         <option value="">All Status</option>
                         @foreach ($statuses as $status)
@@ -86,7 +86,7 @@
                 </div>
 
                 <div class="admin-search-field">
-                    <label>Courier</label>
+                    <label>Courier @include('admin.partials.info-help', ['key' => 'orders_courier_filter', 'text' => 'Steadfast/courier delivery status diye order filter kora jay.'])</label>
                     <select name="courier_status">
                         <option value="">All Courier</option>
                         <option value="not_sent">Not Sent</option>
@@ -98,7 +98,7 @@
                 </div>
 
                 <div class="admin-search-field">
-                    <label>QC</label>
+                    <label>QC @include('admin.partials.info-help', ['key' => 'orders_qc_filter', 'text' => 'Order quality check passed/issue/not checked status.'])</label>
                     <select name="qc_status">
                         <option value="">All QC</option>
                         <option value="{{ App\Models\Order::QC_NOT_CHECKED }}">QC Not Checked</option>
@@ -123,9 +123,9 @@
                         <th>Delivery</th>
                         <th>Items</th>
                         <th>Total</th>
-                        <th>Status</th>
-                        <th>QC</th>
-                        <th>Courier</th>
+                        <th>Status @include('admin.partials.info-help', ['key' => 'order_table_status', 'text' => 'Order current business status.'])</th>
+                        <th>QC @include('admin.partials.info-help', ['key' => 'order_table_qc', 'text' => 'Quality check status before courier send.'])</th>
+                        <th>Courier @include('admin.partials.info-help', ['key' => 'order_table_courier', 'text' => 'Courier sent/delivery status.'])</th>
                         <th class="brand-actions-heading">Actions</th>
                     </tr>
                 </thead>

@@ -457,6 +457,8 @@ document.addEventListener(
             codeOutput.textContent =
                 coupon.code;
 
+            codeOutput.closest('.new-customer-coupon-code')?.toggleAttribute('hidden', Boolean(coupon.requires_membership));
+
             if (applyButton) {
                 applyButton.disabled =
                     pendingCouponMatches();
@@ -507,6 +509,11 @@ document.addEventListener(
                 coupon = data.coupon;
 
                 populatePopup();
+
+                if (coupon.requires_membership) {
+                    openPopup();
+                    return;
+                }
 
                 const alreadySeen =
                     sessionStorage.getItem(
@@ -608,6 +615,11 @@ document.addEventListener(
         function saveCouponOffer(
             sourceButton
         ) {
+            if (coupon?.requires_membership) {
+                window.location.href = coupon.register_url || '/member/register';
+                return;
+            }
+
             if (!coupon?.code) {
                 return;
             }

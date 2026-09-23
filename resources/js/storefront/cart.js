@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function readProductPayload(productButton) {
         const productCard = productButton.closest(
-            '.store-product-card'
+            '.store-product-card, .store-new-arrival-card'
         );
 
         if (!productCard) {

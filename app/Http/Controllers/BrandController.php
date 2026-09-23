@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Coupon;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -135,6 +136,20 @@ class BrandController extends Controller
             ->paginate(12)
             ->withQueryString();
 
+        $activeCoupons = Coupon::query()
+            ->with('brand')
+            ->active()
+            ->where(function ($query) use ($brand): void {
+                $query->whereNull('brand_id')
+                    ->orWhere('brand_id', $brand->id);
+            })
+            ->latest('id')
+            ->get()
+            ->filter(
+                fn (Coupon $coupon): bool => $coupon->isUsableNow()
+            )
+            ->values();
+
         return view('brands.show', compact(
             'brand',
             'brands',
@@ -143,6 +158,7 @@ class BrandController extends Controller
             'newArrivalProducts',
             'products',
             'searchProducts',
+            'activeCoupons',
             'selectedAudience',
             'selectedCategory',
             'selectedCategoryKey'

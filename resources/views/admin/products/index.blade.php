@@ -70,7 +70,7 @@
                 </div>
 
                 <div class="admin-search-field">
-                    <label>Stock</label>
+                    <label>Stock @include('admin.partials.info-help', ['key' => 'products_stock_filter', 'text' => 'Low stock ba out of stock product quickly find korte use korun.'])</label>
                     <select name="stock">
                         <option value="">All Stock</option>
                         <option value="low">Low Stock</option>
@@ -94,8 +94,8 @@
                         <th>Category</th>
                         <th>Code</th>
                         <th>Price</th>
-                        <th>Stock</th>
-                        <th>Featured</th>
+                        <th>Stock @include('admin.partials.info-help', ['key' => 'product_table_stock', 'text' => 'Available quantity. Low/out stock warning ekhane bujha jay.'])</th>
+                        <th>Featured @include('admin.partials.info-help', ['key' => 'product_table_featured', 'text' => 'Featured product storefront-e priority/showcase pabe.'])</th>
                         <th>Status</th>
                         <th class="brand-actions-heading">Actions</th>
                     </tr>

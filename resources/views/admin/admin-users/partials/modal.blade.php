@@ -184,7 +184,7 @@
 
                 <section class="brand-form-section">
                     <div class="brand-form-section-title">
-                        <h4>Module Permissions</h4>
+                        <h4>Module Permissions @include('admin.partials.info-help', ['key' => 'admin_modal_module_permissions', 'text' => 'Module wise view/create/update/delete permission select korun.'])</h4>
                         <p>Select exactly what this admin can view or change.</p>
                     </div>
 
@@ -194,7 +194,7 @@
                             data-admin-full-access
                         >
 
-                        <span>Give Full System Access</span>
+                        <span>Give Full System Access @include('admin.partials.info-help', ['key' => 'admin_modal_full_access', 'text' => 'On korle almost shob allowed permissions select hoye jabe. Trusted admin chara diben na.'])</span>
                     </label>
 
                     <div class="admin-permission-grid">
@@ -203,14 +203,14 @@
                                 <div class="admin-permission-head">
                                     <span>
                                         <i class="fa-solid {{ $meta['icon'] }}"></i>
-                                        <strong>{{ $meta['label'] }}</strong>
+                                        <strong>{{ $meta['label'] }} @include('admin.partials.info-help', ['key' => 'admin_modal_module_'.$module, 'text' => 'Ei module-er access permissions.'])</strong>
                                     </span>
 
                                     <button
                                         type="button"
                                         data-admin-module-select-all="{{ $module }}"
                                     >
-                                        Select All
+                                        Select All @include('admin.partials.info-help', ['key' => 'admin_modal_select_all_'.$module, 'text' => 'Ei module-er shob action permission select/unselect kore.'])
                                     </button>
                                 </div>
 
@@ -233,7 +233,7 @@
 
                 <section class="brand-form-section">
                     <div class="brand-form-section-title">
-                        <h4>Critical Permissions</h4>
+                        <h4>Critical Permissions @include('admin.partials.info-help', ['key' => 'admin_modal_critical_permissions', 'text' => 'Sensitive permissions. Only trusted super admins-ke diben.'])</h4>
                         <p>Give these only to trusted super admins.</p>
                     </div>
 

@@ -74,7 +74,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_slug">
-                    Slug <span>*</span>
+                    Slug <span>*</span> @include('admin.partials.info-help', ['key' => 'product_form_slug', 'text' => 'Product URL/identifier. Usually product name theke create hoy.'])
                 </label>
 
                 <input
@@ -90,7 +90,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_product_code">
-                    Product Code
+                    Product Code @include('admin.partials.info-help', ['key' => 'product_form_code', 'text' => 'SKU/product tracking code. Blank thakle system auto generate korte pare.'])
                 </label>
 
                 <input
@@ -120,7 +120,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_audience">
-                    Audience <span>*</span>
+                    Audience <span>*</span> @include('admin.partials.info-help', ['key' => 'product_form_audience', 'text' => 'Product men, women na both audience-er jonno seta.'])
                 </label>
 
                 <select
@@ -166,7 +166,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_sale_price">
-                    Sale Price
+                    Sale Price @include('admin.partials.info-help', ['key' => 'product_form_sale_price', 'text' => 'Discount/sale price. Blank hole regular price use hobe.'])
                 </label>
 
                 <input
@@ -418,6 +418,33 @@
                     <strong>New Arrival</strong>
                     <small>
                         Mark this product as a new arrival.
+                    </small>
+                </span>
+            </button>
+        </div>
+
+        <div class="product-toggle-card">
+            <input
+                type="hidden"
+                id="{{ $formPrefix }}_is_sales_badge"
+                name="is_sales_badge"
+                value="0"
+            >
+
+            <button
+                type="button"
+                class="product-boolean-toggle"
+                data-toggle-target="{{ $formPrefix }}_is_sales_badge"
+                aria-pressed="false"
+            >
+                <span class="product-toggle-switch">
+                    <span class="product-toggle-knob"></span>
+                </span>
+
+                <span class="product-toggle-copy">
+                    <strong>Sales</strong>
+                    <small>
+                        Show sale discount badge on new arrival images.
                     </small>
                 </span>
             </button>

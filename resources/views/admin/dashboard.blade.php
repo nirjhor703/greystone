@@ -81,6 +81,45 @@
             : $formatted;
     };
 
+    $canEditInfo = auth()->user()?->hasAdminPermission('info.editing');
+    $dashboardHelpTexts = [
+        'revenue' => 'Selected period-e cancelled order bad diye total confirmed sales amount ekhane dekhay.',
+        'orders' => 'Selected period-e cancelled order bad diye total order count ekhane dekhay.',
+        'items' => 'Selected period-e order item quantity total kore ekhane dekhay.',
+        'customers' => 'Same phone number ekbar dhore unique customer count dekhay.',
+        'customer_mix' => 'New mane first-time buyer, Repeat mane age order kora customer abar order koreche.',
+        'average_order' => 'Revenue ke order count diye vag kore average order value dekhay.',
+        'trend_revenue' => 'Chart-er selected period-er total revenue ekhane summary hishabe dekhay.',
+        'trend_orders' => 'Chart-er selected period-er total order count ekhane summary hishabe dekhay.',
+        'best_revenue' => 'Selected period-er moddhe je date/point-e highest revenue hoyeche seta dekhay.',
+        'best_sales' => 'Selected period-er moddhe je date/point-e highest order hoyeche seta dekhay.',
+        'analytics_filters' => 'Brand, period ba date range select kore dashboard-er shob calculation filter kora jay.',
+        'filter_brand' => 'Specific brand select korle dashboard-e shudhu oi brand-er data dekhabe.',
+        'filter_period' => 'Daily, weekly, monthly, yearly ba custom range diye report-er shomoy change kora jay.',
+        'filter_start_date' => 'Custom date range use korle kon date theke hisab shuru hobe seta ekhane dite hoy.',
+        'filter_end_date' => 'Custom date range use korle kon date porjonto hisab hobe seta ekhane dite hoy.',
+        'business_trend' => 'Ei chart-e selected period-e revenue/order up-down trend dekha jay.',
+        'brand_performance' => 'Prottek brand-er revenue, orders, items, average order, new and repeat customer ekhane compare kora jay.',
+        'recent_orders' => 'Selected period-er latest order-gula ekhane quick view hishabe thake.',
+        'needs_attention' => 'Je kaj-gula urgent attention dorkar, jemon low stock ba unread notification, ekhane dekhay.',
+        'low_stock' => 'Stock kom hoye jawa products ekhane count hoy, click korle product list-e niye jay.',
+        'unread_notifications' => 'Notun unread notification count ekhane dekhay, click korle notification page-e niye jay.',
+    ];
+    $dashboardHelp = function (string $key) use ($dashboardHelpTexts, $canEditInfo) {
+        static $helpCounts = [];
+        $helpCounts[$key] = ($helpCounts[$key] ?? 0) + 1;
+        $id = 'dashboardHelp'.str_replace(' ', '', ucwords(str_replace('_', ' ', $key))).$helpCounts[$key];
+        $storageKey = 'dashboardHelpText_'.$key;
+        $text = e($dashboardHelpTexts[$key] ?? '');
+        $editButton = $canEditInfo
+            ? '<button type="button" class="investment-help-edit-button">Edit</button>'
+            : '';
+
+        return new \Illuminate\Support\HtmlString(
+            '<button type="button" class="investment-info-button" onclick="const box=document.getElementById(\''.$id.'\'); if(box){ box.hidden = !box.hidden; }" aria-label="Help">i</button><small id="'.$id.'" class="investment-help-text" data-investment-editable-help="'.$storageKey.'" hidden><span data-investment-help-copy>'.$text.'</span>'.$editButton.'</small>'
+        );
+    };
+
     $coordsFor = function (
         array $values,
         float $maximum
@@ -203,7 +242,7 @@
         <div class="dashboard-filter-heading">
             <div>
                 <span>
-                    Analytics filters
+                    Analytics filters {!! $dashboardHelp('analytics_filters') !!}
                 </span>
 
                 <strong>
@@ -455,7 +494,7 @@
                 <i class="fa-solid fa-user-plus"></i>
             </div>
 
-            <span>Customer Mix</span>
+            <span>Customer Mix {!! $dashboardHelp('customer_mix') !!}</span>
 
             <div class="dashboard-customer-mix">
                 <div>
@@ -512,7 +551,7 @@
                 </span>
 
                 <h3>
-                    Business Trend
+                    Business Trend {!! $dashboardHelp('business_trend') !!}
                 </h3>
 
                 <p>
@@ -1164,7 +1203,7 @@
             <div class="dashboard-card-head">
                 <div>
                     <h3>
-                        Needs Attention
+                        Needs Attention {!! $dashboardHelp('needs_attention') !!}
                     </h3>
 
                     <p>
@@ -1230,6 +1269,36 @@
         document.addEventListener(
             'DOMContentLoaded',
             function () {
+                document
+                    .querySelectorAll('[data-investment-editable-help]')
+                    .forEach(function (box) {
+                        const key = box.dataset.investmentEditableHelp;
+                        const copy = box.querySelector('[data-investment-help-copy]');
+                        const editButton = box.querySelector('.investment-help-edit-button');
+                        const saved = window.localStorage.getItem(key);
+
+                        if (saved && copy) {
+                            copy.textContent = saved;
+                        }
+
+                        editButton?.addEventListener('click', function () {
+                            copy?.setAttribute('contenteditable', 'true');
+                            copy?.focus();
+                        });
+
+                        copy?.addEventListener('blur', function () {
+                            copy.removeAttribute('contenteditable');
+                            window.localStorage.setItem(key, copy.textContent.trim());
+                        });
+
+                        copy?.addEventListener('keydown', function (event) {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                copy.blur();
+                            }
+                        });
+                    });
+
                 const metricButtons =
                     document.querySelectorAll(
                         '[data-dashboard-metric]'

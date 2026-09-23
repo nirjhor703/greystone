@@ -70,7 +70,7 @@
                         <th>ID</th>
                         <th>Brand</th>
                         <th>Slug</th>
-                        <th>Primary Color</th>
+                        <th>Primary Color @include('admin.partials.info-help', ['key' => 'brand_table_color', 'text' => 'Brand-er main theme color storefront-e use hoy.'])</th>
                         <th>Contact</th>
                         <th>Status</th>
                         <th class="brand-actions-heading">Actions</th>

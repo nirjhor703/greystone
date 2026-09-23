@@ -153,6 +153,9 @@ class ProductController extends Controller
             'is_new_arrival' =>
                 (bool) $product->is_new_arrival,
 
+            'is_sales_badge' =>
+                (bool) $product->is_sales_badge,
+
             'status' => $product->status,
 
             'images' => $product->images
@@ -604,6 +607,11 @@ class ProductController extends Controller
                 'boolean',
             ],
 
+            'is_sales_badge' => [
+                'nullable',
+                'boolean',
+            ],
+
             'status' => [
                 'required',
                 Rule::in([
@@ -782,6 +790,10 @@ class ProductController extends Controller
 
             'is_new_arrival' => $request->boolean(
                 'is_new_arrival'
+            ),
+
+            'is_sales_badge' => $request->boolean(
+                'is_sales_badge'
             ),
 
             'status' => $validated['status'],
@@ -1150,6 +1162,7 @@ private function generateVariantSku(
 
             'is_featured' => (bool) $product->is_featured,
             'is_new_arrival' => (bool) $product->is_new_arrival,
+            'is_sales_badge' => (bool) $product->is_sales_badge,
             'status' => $product->status,
 
             'primary_image_url' => $primaryImage

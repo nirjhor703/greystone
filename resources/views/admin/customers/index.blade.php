@@ -23,17 +23,17 @@
         </article>
 
         <article>
-            <span>Repeat Customers</span>
+            <span>Repeat Customers @include('admin.partials.info-help', ['key' => 'customers_repeat', 'text' => 'Jara multiple order koreche tader count.'])</span>
             <strong>{{ number_format($stats['repeat_customers']) }}</strong>
         </article>
 
         <article>
-            <span>Email Leads</span>
+            <span>Email Leads @include('admin.partials.info-help', ['key' => 'customers_email_leads', 'text' => 'Jader email ache, marketing/follow-up lead hishabe useful.'])</span>
             <strong>{{ number_format($stats['email_leads']) }}</strong>
         </article>
 
         <article>
-            <span>Total Customer Spend</span>
+            <span>Total Customer Spend @include('admin.partials.info-help', ['key' => 'customers_total_spend', 'text' => 'Customers-der total order spending amount.'])</span>
             <strong>৳{{ number_format($stats['total_spent'], 2) }}</strong>
         </article>
     </div>

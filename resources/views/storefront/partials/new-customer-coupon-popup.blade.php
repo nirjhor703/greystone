@@ -62,15 +62,15 @@
             class="new-customer-coupon-badge"
             id="newCustomerCouponBadge"
         >
-            New Customer Offer
+            Grey Stone Membership
         </span>
 
         <h2 id="newCustomerCouponTitle">
-            Welcome Offer
+            Unlock Your Coupon Wallet
         </h2>
 
         <p id="newCustomerCouponDescription">
-            Use this coupon during checkout.
+            Become a member and begin collecting rewards from your purchases.
         </p>
 
         <div class="new-customer-coupon-code">

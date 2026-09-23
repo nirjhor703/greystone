@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use App\Models\Coupon;
+use App\Models\MemberCoupon;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -14,6 +15,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -416,6 +418,7 @@ class OrderController extends Controller
                     */
     
                     $order = Order::create([
+                        'member_id' => $request->session()->get('member_id'),
                         'order_number' =>
                             $this->generateOrderNumber(),
     
@@ -549,6 +552,38 @@ class OrderController extends Controller
                     $order->items()->createMany(
                         $orderItems->all()
                     );
+
+                    $member = $order->member()
+                        ->with('referrer')
+                        ->first();
+
+                    if ($member?->referrer?->is_active) {
+                        $commissionBase = max(
+                            $itemsTotal - $couponDiscount,
+                            0
+                        );
+
+                        $commissionAmount = round(
+                            $commissionBase
+                            * ((float) $member->referrer->commission_rate / 100),
+                            2
+                        );
+
+                        if ($commissionAmount > 0) {
+                            $member->referrer->increment(
+                                'balance',
+                                $commissionAmount
+                            );
+                        }
+                    }
+
+                    if ($couponData) {
+                        MemberCoupon::query()
+                            ->where('coupon_id', $couponData['coupon']->id)
+                            ->where('member_id', $request->session()->get('member_id'))
+                            ->where('status', 'available')
+                            ->update(['status' => 'used', 'used_at' => now()]);
+                    }
     
                     /*
                     |--------------------------------------------------------------------------
@@ -713,6 +748,11 @@ class OrderController extends Controller
             return null;
         }
 
+        if (!$request->session()->has('member_id')) {
+            $request->session()->forget('checkout_coupon');
+            abort(response()->json(['status' => 'error', 'message' => 'Membership is required to use coupons.'], 403));
+        }
+
         $coupon = Coupon::query()
             ->whereRaw('UPPER(code) = ?', [
                 mb_strtoupper(trim((string) $code)),
@@ -728,6 +768,16 @@ class OrderController extends Controller
                 'status' => 'error',
                 'message' => 'Coupon is no longer available for this order.',
             ], 422));
+        }
+
+        $walletRestricted = MemberCoupon::where('coupon_id', $coupon->id)->exists();
+        $walletCoupon = MemberCoupon::where('coupon_id', $coupon->id)
+            ->where('member_id', $request->session()->get('member_id'))
+            ->where('status', 'available')
+            ->exists();
+        if ($walletRestricted && !$walletCoupon) {
+            $request->session()->forget('checkout_coupon');
+            abort(response()->json(['status' => 'error', 'message' => 'This gift coupon is not available in your wallet.'], 422));
         }
 
         return [

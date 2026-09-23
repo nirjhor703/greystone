@@ -78,7 +78,7 @@
 
         <div class="admin-search-grid">
             <div class="admin-search-field">
-                <label>Search</label>
+                    <label>Search</label>
                 <input
                     type="search"
                     name="search"
@@ -107,7 +107,7 @@
             href="{{ route('admin.notifications.index', ['category' => 'main']) }}"
             class="{{ $activeCategory === 'main' ? 'active' : '' }}"
         >
-            Main Notifications
+            Main Notifications @include('admin.partials.info-help', ['key' => 'notifications_main_tab', 'text' => 'Orders and courier related notifications.'])
 
             @if ($counts['main'] > 0)
                 <span>{{ $counts['main'] }}</span>
@@ -118,7 +118,7 @@
             href="{{ route('admin.notifications.index', ['category' => 'stock']) }}"
             class="{{ $activeCategory === 'stock' ? 'active' : '' }}"
         >
-            Stock Notifications
+            Stock Notifications @include('admin.partials.info-help', ['key' => 'notifications_stock_tab', 'text' => 'Low stock product reminders.'])
 
             @if ($counts['stock'] > 0)
                 <span>{{ $counts['stock'] }}</span>

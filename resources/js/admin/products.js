@@ -1113,6 +1113,11 @@ document.addEventListener('DOMContentLoaded', () => {
             `${prefix}_is_new_arrival`,
             false
         );
+
+        setBooleanToggle(
+            `${prefix}_is_sales_badge`,
+            false
+        );
     }
 
     const routeUrl = (template, id) =>
@@ -1447,6 +1452,11 @@ document.addEventListener('DOMContentLoaded', () => {
             product.is_new_arrival === true ||
             product.is_new_arrival === 1 ||
             product.is_new_arrival === '1';
+
+        const salesBadgeEnabled =
+            product.is_sales_badge === true ||
+            product.is_sales_badge === 1 ||
+            product.is_sales_badge === '1';
     
         setBooleanToggle(
             'edit_is_featured',
@@ -1456,6 +1466,11 @@ document.addEventListener('DOMContentLoaded', () => {
         setBooleanToggle(
             'edit_is_new_arrival',
             newArrivalEnabled
+        );
+
+        setBooleanToggle(
+            'edit_is_sales_badge',
+            salesBadgeEnabled
         );
     
         const productIdInput =

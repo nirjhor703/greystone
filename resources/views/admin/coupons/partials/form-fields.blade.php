@@ -61,7 +61,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_discount_type">
-                    Discount Type <span>*</span>
+                    Discount Type <span>*</span> @include('admin.partials.info-help', ['key' => 'coupon_form_discount_type', 'text' => 'Fixed taka discount na percentage discount seta.'])
                 </label>
 
                 <select
@@ -78,7 +78,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_discount_value">
-                    Discount Value <span>*</span>
+                    Discount Value <span>*</span> @include('admin.partials.info-help', ['key' => 'coupon_form_discount_value', 'text' => 'Fixed hole taka amount, percentage hole percent number.'])
                 </label>
 
                 <input
@@ -95,7 +95,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_max_discount_amount">
-                    Max Discount
+                    Max Discount @include('admin.partials.info-help', ['key' => 'coupon_form_max_discount', 'text' => 'Percentage coupon-e maximum koto taka discount dibe.'])
                 </label>
 
                 <input
@@ -112,7 +112,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_min_order_amount">
-                    Minimum Order
+                    Minimum Order @include('admin.partials.info-help', ['key' => 'coupon_form_min_order', 'text' => 'Minimum order amount na hole coupon apply hobe na.'])
                 </label>
 
                 <input
@@ -129,7 +129,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_usage_limit">
-                    Usage Limit
+                    Usage Limit @include('admin.partials.info-help', ['key' => 'coupon_form_usage_limit', 'text' => 'Coupon total koybar use kora jabe. Blank hole unlimited.'])
                 </label>
 
                 <input
@@ -146,7 +146,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_starts_at">
-                    Starts At
+                    Starts At @include('admin.partials.info-help', ['key' => 'coupon_form_starts_at', 'text' => 'Coupon kon time/date theke active hobe.'])
                 </label>
 
                 <input
@@ -160,7 +160,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_expires_at">
-                    Expires At
+                    Expires At @include('admin.partials.info-help', ['key' => 'coupon_form_expires_at', 'text' => 'Coupon kon time/date-er por expire hobe.'])
                 </label>
 
                 <input

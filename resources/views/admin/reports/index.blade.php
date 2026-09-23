@@ -50,13 +50,13 @@
                 </span>
 
                 <div>
-                    <strong>Filters</strong>
+                    <strong>Filters @include('admin.partials.info-help', ['key' => 'reports_filters', 'text' => 'Period, date, brand and status select kore report generate kora jay.'])</strong>
                     <small>{{ $periodLabel }}</small>
                 </div>
             </div>
 
             <div class="admin-search-field report-period-field">
-                <label>Period</label>
+                <label>Period @include('admin.partials.info-help', ['key' => 'reports_period', 'text' => 'Daily, weekly, monthly ba custom date range select korun.'])</label>
                 <select name="period" id="reportPeriodSelect">
                     @foreach ([
                         'daily' => 'Daily',
@@ -148,7 +148,7 @@
             >
                 <span><i class="fa-solid fa-sack-dollar"></i></span>
                 <div>
-                    <h3>Revenue Report</h3>
+                    <h3>Revenue Report @include('admin.partials.info-help', ['key' => 'report_box_revenue', 'text' => 'Income, order count and revenue summary details.'])</h3>
                     <p>Daily, weekly or monthly income summary.</p>
                 </div>
                 <strong>৳{{ number_format($summary['revenue'], 2) }}</strong>
@@ -161,7 +161,7 @@
             >
                 <span><i class="fa-solid fa-users"></i></span>
                 <div>
-                    <h3>Customer Report</h3>
+                    <h3>Customer Report @include('admin.partials.info-help', ['key' => 'report_box_customer', 'text' => 'New/repeat customers and spending history.'])</h3>
                     <p>New customers, repeat customers and spending history.</p>
                 </div>
                 <strong>{{ number_format($summary['customers']) }}</strong>
@@ -178,7 +178,7 @@
             >
                 <span><i class="fa-solid fa-box-open"></i></span>
                 <div>
-                    <h3>Product Report</h3>
+                    <h3>Product Report @include('admin.partials.info-help', ['key' => 'report_box_product', 'text' => 'Product wise sold quantity and revenue performance.'])</h3>
                     <p>Best selling products and quantity sold.</p>
                 </div>
                 <strong>{{ number_format($summary['products_sold']) }}</strong>
@@ -191,7 +191,7 @@
             >
                 <span><i class="fa-solid fa-receipt"></i></span>
                 <div>
-                    <h3>Order Report</h3>
+                    <h3>Order Report @include('admin.partials.info-help', ['key' => 'report_box_order', 'text' => 'Invoice, order status and customer order list.'])</h3>
                     <p>Invoice, status and customer order list.</p>
                 </div>
                 <strong>{{ number_format($summary['orders']) }}</strong>

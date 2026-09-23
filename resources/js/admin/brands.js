@@ -293,7 +293,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetPreview(prefix) {
-        ['logo', 'mobile_logo', 'favicon', 'offer_banners'].forEach((field) => {
+        [
+            'logo',
+            'mobile_logo',
+            'favicon',
+            'offer_banners',
+            'signup_banner',
+            'sales_banner',
+            'coupons_banner',
+        ].forEach((field) => {
             const preview = document.getElementById(
                 `${prefix}_${field}_preview`
             );
@@ -400,6 +408,21 @@ document.addEventListener('DOMContentLoaded', () => {
             'edit',
             'favicon',
             brand.favicon_url
+        );
+        showExistingImage(
+            'edit',
+            'signup_banner',
+            brand.signup_banner_url
+        );
+        showExistingImage(
+            'edit',
+            'sales_banner',
+            brand.sales_banner_url
+        );
+        showExistingImage(
+            'edit',
+            'coupons_banner',
+            brand.coupons_banner_url
         );
         showExistingBanners(
             'edit',

@@ -842,6 +842,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         renderCheckoutCart();
         await loadAvailableCoupons();
+        if (!appliedCoupon && pendingCouponCode) {
+            await applyCoupon(pendingCouponCode);
+        }
         updateCheckoutTotals();
     }
 
@@ -975,27 +978,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
             card.innerHTML = `
                 <div class="checkout-voucher-icon">
-                    <i class="fa-solid fa-ticket"></i>
+                    <span>DISCOUNT</span>
+                    <b>${escapeHtml(coupon.discount_label || '')}</b>
                 </div>
 
                 <div class="checkout-voucher-content">
                     <div class="checkout-voucher-title-row">
-                        <strong>${escapeHtml(coupon.title || coupon.discount_label || coupon.code)}</strong>
-
-                        <button
-                            type="button"
-                            data-apply-voucher="${escapeHtml(coupon.code)}"
-                            ${eligible && !isApplied ? '' : 'disabled'}
-                        >
-                            ${isApplied ? 'Applied' : 'Apply'}
-                        </button>
+                        <strong>COUPON</strong>
                     </div>
 
                     <div class="checkout-voucher-code-row">
-                        <span>${escapeHtml(coupon.discount_label || '')}</span>
                         <code>${escapeHtml(coupon.code)}</code>
                         ${coupon.new_customer_only ? '<em>New customer</em>' : ''}
                     </div>
+
+                    <p class="checkout-voucher-name">${escapeHtml(coupon.title || 'Member reward')}</p>
 
                     <div class="checkout-voucher-progress">
                         <span style="width: ${progress}%"></span>
@@ -1019,6 +1016,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     </div>
                 </div>
+
+                <button
+                    type="button"
+                    class="checkout-voucher-apply"
+                    data-apply-voucher="${escapeHtml(coupon.code)}"
+                    ${eligible && !isApplied ? '' : 'disabled'}
+                >
+                    ${isApplied ? 'Applied' : 'Apply'}
+                </button>
             `;
 
             checkoutVoucherTrack.appendChild(card);

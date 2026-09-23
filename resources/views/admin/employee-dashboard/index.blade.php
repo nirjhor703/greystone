@@ -241,7 +241,7 @@
                 <span class="dashboard-section-eyebrow">
                     Employee Trend
                 </span>
-                <h3>Performance Trend</h3>
+                <h3>Performance Trend @include('admin.partials.info-help', ['key' => 'employee_trend', 'text' => 'Selected period-e employee activity/revenue trend compare korte use korun.'])</h3>
                 <p>Top employees by activity count and touched revenue for {{ $periodLabel }}.</p>
             </div>
 
@@ -506,7 +506,7 @@
     <section class="dashboard-panel employee-table-panel">
         <div class="dashboard-card-head">
             <div>
-                <h3>Detailed Performance</h3>
+                <h3>Detailed Performance @include('admin.partials.info-help', ['key' => 'employee_detailed_performance', 'text' => 'Employee-wise handled actions, delivery touch, revenue touch and score ekhane dekhay.'])</h3>
                 <p>Use this table for daily follow-up and team coaching.</p>
             </div>
         </div>
@@ -525,7 +525,7 @@
                         <th>Delivered Touched</th>
                         <th>Revenue Touched</th>
                         <th>New Customers</th>
-                        <th>Score</th>
+                        <th>Score @include('admin.partials.info-help', ['key' => 'employee_score', 'text' => 'Actions, delivery touch, revenue and customer activity mile performance score calculate hoy.'])</th>
                     </tr>
                 </thead>
                 <tbody>

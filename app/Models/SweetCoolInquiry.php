@@ -18,11 +18,17 @@ class SweetCoolInquiry extends Model
         'phone',
         'email',
         'company_name',
+        'contact_reason',
         'interest_type',
         'quantity_note',
         'preferred_contact',
+        'role_tags',
         'message',
         'page_url',
+    ];
+
+    protected $casts = [
+        'role_tags' => 'array',
     ];
 
     public function brand(): BelongsTo

@@ -35,6 +35,7 @@ class Order extends Model
     protected $fillable = [
         'order_number',
         'invoice_number',
+        'member_id',
         'brand_id',
     
         'customer_name',
@@ -121,6 +122,11 @@ class Order extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(Member::class);
     }
 
     public function steadfastSentBy(): BelongsTo

@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return card.dataset.productBrandPriority === 'secondary';
         });
 
-        if (primaryProducts.length > 0 && secondaryProducts.length > 0) {
+        if (secondaryProducts.length > 0) {
             crossBrandDivider.hidden = false;
             productGrid.insertBefore(
                 crossBrandDivider,
@@ -111,7 +111,9 @@ document.addEventListener('DOMContentLoaded', function () {
             )
         );
 
-        const hasProducts = productCards.length > 0;
+        const hasProducts = productCards.some(function (card) {
+            return card.dataset.productBrandPriority === 'primary';
+        }) || Boolean(productGrid.querySelector('.store-coming-soon-card'));
 
         emptyMessage.hidden = hasProducts;
 

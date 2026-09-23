@@ -1,0 +1,623 @@
+.signup-card{--signup-upper:#050505;--signup-lower:#f7f7f5;--signup-ink:#111;--signup-input:#fff;padding-top:440px!important;color:var(--signup-ink)!important;background:var(--signup-lower)!important}
+.signup-card::before{content:"";position:absolute;z-index:0;inset:0 0 auto;height:520px;background:var(--signup-upper)!important}
+.signup-wave{position:absolute!important;top:0!important;left:0!important;z-index:1;width:100%!important;height:520px!important;background:none!important;border:0!important;border-radius:0!important;transform:none!important;fill:var(--signup-lower)!important}
+.signup-wave path{fill:var(--signup-lower)!important}.signup-head{top:24px!important;z-index:3;height:390px;color:#fff}.signup-head>div{position:absolute;top:238px;left:8%;width:250px;color:var(--signup-ink)!important}.signup-head>div span{display:none}.signup-head h1{margin:0;font-family:Impact,"Arial Narrow",sans-serif;font-size:54px!important;font-weight:400;line-height:1;letter-spacing:.005em}.signup-head>a:first-child{position:absolute;top:0;left:0}.signup-google{position:absolute;top:0;right:0}.signup-form,.signup-login,.signup-card>.member-alert{position:relative;z-index:2}.signup-field input,.signup-dob input,.signup-dob select{color:var(--signup-ink)!important;background:var(--signup-input)!important}.member-theme-male .signup-card{--signup-upper:#f7f7f5;--signup-lower:#050505;--signup-ink:#fff;--signup-input:#222}.member-theme-male .signup-head>a:first-child{color:#111!important}.member-theme-male .signup-google{border:1px solid #d8d8d8}.member-theme-male .signup-gender span{color:#fff;border-color:#555;background:#050505}.member-theme-male .signup-gender input:checked+span,.member-theme-male .signup-submit{color:#111!important;background:#fff!important}.member-theme-male .signup-submit b{color:#fff;background:#111}.member-theme-female .signup-card{--signup-upper:#050505;--signup-lower:#f5b7ce;--signup-ink:#361521;--signup-input:rgba(255,255,255,.72)}
+.member-welcome-screen::before{background:#050505!important}.member-welcome-wave{display:none!important}.member-welcome-waves{position:absolute;z-index:2;inset:0;width:100%;height:100%}.welcome-wave-one{fill:#111}.welcome-wave-two{fill:#272727}.welcome-wave-three{fill:#f7f7f5}.member-welcome-brand{z-index:4}.member-welcome-copy,.member-welcome-next{z-index:5}
+@media(max-width:560px){
+    .member-compact-body{overflow:hidden}
+    .signup-screen{height:100svh;padding:0}
+    .signup-card{width:100%;height:100svh;min-height:620px;padding:318px 16px 7px!important;overflow:hidden;border-radius:0}
+    .signup-card::before{height:342px}
+    .signup-wave{height:342px!important}
+    .signup-head{top:16px!important;left:16px!important;right:16px!important;height:290px}
+    .signup-head>div{top:174px;left:7%;width:170px}
+    .signup-head h1{font-size:42px!important}
+    .signup-head>a:first-child{font-size:9px}
+    .signup-google{padding:6px 9px;font-size:9px}
+    .signup-google b{font-size:14px}
+    .signup-form{grid-template-columns:1fr 1fr;gap:5px 8px}
+    .signup-wide{grid-column:1/-1}
+    .signup-field{grid-column:auto;gap:2px}
+    .signup-field label,.signup-gender legend,.signup-dob legend{font-size:8px}
+    .signup-field input,.signup-dob input,.signup-dob select{height:32px;padding:0 9px;border-radius:7px;font-size:11px}
+    .signup-gender>div{gap:8px;margin-top:2px}
+    .signup-gender span{height:30px;border-radius:7px;font-size:11px}
+    .signup-dob>div{grid-template-columns:.72fr 1.2fr 1fr;gap:7px;margin-top:2px}
+    .signup-dob label{gap:1px}.signup-dob label>span{font-size:7px}
+    .signup-consent{gap:5px;font-size:8px;line-height:1.2}
+    .signup-consent input{width:13px;height:13px;margin:0}
+    .signup-submit{height:35px;margin-top:1px;padding:3px 4px 3px 14px;font-size:9px}
+    .signup-submit b{width:28px;height:28px;font-size:14px}
+    .signup-login{margin-top:4px;font-size:8px}
+    .member-welcome-screen{width:100%;height:100svh;min-height:620px;border-radius:0}
+    .member-welcome-brand{top:24px;left:24px;font-size:11px}
+    .member-welcome-copy{left:24px;bottom:36px}
+    .member-welcome-copy h1{font-size:46px}
+    .member-welcome-copy p{font-size:11px}
+    .member-welcome-next{right:22px;bottom:30px;width:46px;height:46px;font-size:23px}
+}
+
+@media(max-width:370px){
+    .signup-card{padding-inline:12px!important}
+    .signup-head{left:12px!important;right:12px!important}
+    .signup-google span{display:none}
+    .signup-google{width:32px;height:32px;justify-content:center;padding:0}
+}
+
+.signup-submit{border-radius:18px!important}
+.signup-submit b{border-radius:20%!important}
+
+.signup-head > div {
+    top: 252px;
+    left: 10%;
+}
+
+.signup-field.signup-wide {
+    grid-column: 1 / -1;
+}
+
+.signup-submit {
+    width: 68%;
+    justify-self: center;
+}
+
+.signup-card {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+}
+
+.signup-screen {
+    height: auto;
+    min-height: 100svh;
+}
+
+@media (max-width: 560px) {
+    .signup-head > div {
+        top: 190px;
+        left: 10%;
+    }
+
+    .signup-card {
+        height: auto;
+        min-height: 0;
+        padding-bottom: 10px !important;
+    }
+
+    .signup-field.signup-wide {
+        grid-column: 1 / -1;
+    }
+
+    .signup-submit {
+        width: 72%;
+    }
+}
+
+.birthday-control {
+    position: relative;
+}
+
+.signup-birthday .birthday-control input {
+    width: 100%;
+    padding-right: 58px;
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: .04em;
+}
+
+.signup-birthday input::-webkit-calendar-picker-indicator {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    opacity: 0;
+}
+
+.birthday-modal[hidden]{display:none}.birthday-modal{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:16px}.birthday-backdrop{position:absolute;inset:0;width:100%;height:100%;padding:0;background:rgba(0,0,0,.55);border:0;backdrop-filter:blur(5px)}.birthday-picker{position:relative;box-sizing:border-box;width:min(340px,calc(100vw - 32px));padding:18px;color:#111;background:#fff;border:1px solid rgba(0,0,0,.12);border-radius:22px;box-shadow:0 28px 80px rgba(0,0,0,.35)}.birthday-picker header{display:grid;grid-template-columns:38px 1fr 38px;align-items:center;gap:8px;margin-bottom:14px}.birthday-picker header strong{text-align:center;font-size:17px}.birthday-picker header button{display:grid;place-items:center;width:38px;height:38px;padding:0;color:#fff;background:#111;border:0;border-radius:50%;font-size:25px;cursor:pointer}.birthday-weekdays,.birthday-days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.birthday-weekdays{margin-bottom:6px}.birthday-weekdays span{font-size:10px;font-weight:900;text-align:center;opacity:.45}.birthday-days button,.birthday-days>span{aspect-ratio:1;border:0;border-radius:10px}.birthday-days button{color:#111;background:#f2f2f2;cursor:pointer;font-weight:800}.birthday-days button:hover,.birthday-days button.selected{color:#fff;background:#111}.birthday-days button:disabled{cursor:not-allowed;opacity:.2}.birthday-close{width:100%;height:40px;margin-top:14px;color:#fff;background:#111;border:0;border-radius:99px;cursor:pointer;font-weight:900}.member-theme-male .birthday-picker{color:#fff;background:#161616;border-color:#444}.member-theme-male .birthday-picker header button,.member-theme-male .birthday-close{color:#111;background:#fff}.member-theme-male .birthday-days button{color:#fff;background:#292929}.member-theme-male .birthday-days button:hover,.member-theme-male .birthday-days button.selected{color:#111;background:#fff}
+.birthday-jump{display:grid;grid-template-columns:1.35fr .9fr;gap:6px}.birthday-jump select{min-width:0;height:38px;padding:0 24px 0 10px;color:#111;background:#f2f2f2;border:1px solid #ddd;border-radius:10px;cursor:pointer;font:inherit;font-size:12px;font-weight:900;text-align:center}.member-theme-male .birthday-jump select{color:#fff;background:#292929;border-color:#444}
+.birthday-choice{position:relative;min-width:0}.birthday-picker header .birthday-choice>button{width:100%;height:38px;padding:0 10px;color:#111;background:#f2f2f2;border:1px solid #ddd;border-radius:10px;font-size:12px;font-weight:900;white-space:nowrap}.birthday-choice-menu[hidden]{display:none}.birthday-choice-menu{position:absolute;z-index:5;top:43px;left:0;width:100%;max-height:180px;padding:5px;overflow-y:auto;background:#fff;border:1px solid #ddd;border-radius:11px;box-shadow:0 14px 35px rgba(0,0,0,.22);scrollbar-width:thin}.birthday-picker .birthday-choice-menu button{display:block;width:100%;height:34px;padding:0 7px;color:#111;background:transparent;border:0;border-radius:7px;font-size:12px;font-weight:800;text-align:center}.birthday-picker .birthday-choice-menu button:hover{color:#fff;background:#111}.member-theme-male .birthday-picker header .birthday-choice>button{color:#fff;background:#292929;border-color:#444}.member-theme-male .birthday-choice-menu{background:#202020;border-color:#444}.member-theme-male .birthday-picker .birthday-choice-menu button{color:#fff}.member-theme-male .birthday-picker .birthday-choice-menu button:hover{color:#111;background:#fff}
+
+.birthday-control button {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    right: 7px;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 32px;
+    padding: 0;
+    color: #fff;
+    background: #111;
+    border: 0;
+    border-radius: 9px;
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.birthday-control button span {
+    position: relative;
+    width: 15px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-radius: 3px;
+}
+
+.birthday-control button span::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 0;
+    width: 100%;
+    border-top: 2px solid currentColor;
+}
+
+.birthday-control button span::after {
+    content: "";
+    position: absolute;
+    top: -5px;
+    left: 2px;
+    width: 7px;
+    height: 4px;
+    border-right: 2px solid currentColor;
+    border-left: 2px solid currentColor;
+}
+
+.member-theme-male .birthday-control button {
+    color: #111;
+    background: #fff;
+}
+
+.signup-head > a.signup-corner-brand {
+    top: 18px;
+    left: 50%;
+    width: max-content;
+    font-family: Impact, "Arial Narrow", sans-serif;
+    font-size: 48px;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: .045em;
+    text-align: center;
+    transform: translateX(-50%);
+}
+
+@media (max-width: 560px) {
+    .signup-birthday .birthday-control input {
+        padding-right: 45px;
+    }
+
+    .birthday-control button {
+        right: 4px;
+        width: 30px;
+        height: 26px;
+        border-radius: 6px;
+    }
+
+
+    .signup-head > a.signup-corner-brand {
+        top: 10px;
+        font-size: 34px;
+        letter-spacing: .04em;
+    }
+}
+
+/* Final reference alignment: keep the approved curve and align content around it. */
+.signup-card {
+    --signup-upper-ink: #fff;
+    width: min(620px, 100%);
+    padding-right: 32px !important;
+    padding-bottom: 12px !important;
+    padding-left: 32px !important;
+    height: 100svh;
+    min-height: 100svh;
+    border-radius: 30px;
+    display: flex;
+    flex-direction: column;
+}
+
+.signup-screen {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.signup-head > div.signup-title {
+    top: 252px;
+    left: 9%;
+    width: 220px;
+    color: var(--signup-ink) !important;
+}
+
+.signup-title h1 {
+    font-size: 52px !important;
+}
+
+.signup-head > div.signup-google-block {
+    position: absolute;
+    top: 246px;
+    right: 7%;
+    left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 155px;
+    color: var(--signup-upper-ink) !important;
+    text-align: center;
+}
+
+.signup-google-block > span {
+    display: block !important;
+    margin-bottom: 7px;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.signup-google-block .signup-google {
+    position: static;
+    min-width: 152px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 9px 18px;
+    font-size: 13px;
+}
+
+.signup-google-block .signup-google span {
+    display: inline !important;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.signup-google-block .signup-google b {
+    font-size: 22px;
+}
+
+.signup-form {
+    flex: 1;
+    align-content: space-between;
+    row-gap: 9px;
+    column-gap: 16px;
+}
+
+.signup-field label,
+.signup-gender legend,
+.signup-dob legend,
+.signup-dob label > span {
+    width: 100%;
+    text-align: center;
+}
+
+.signup-submit {
+    width: 46%;
+    height: 56px;
+    margin-top: 2px;
+    font-size: 17px;
+}
+
+.signup-submit b {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+}
+
+.signup-login {
+    margin: 5px 0 0;
+    font-size: 14px;
+}
+
+.member-theme-male .signup-card {
+    --signup-upper-ink: #111;
+}
+
+@media (max-width: 560px) {
+    .signup-card {
+        width: 100%;
+        height: 100svh;
+        min-height: 100svh;
+        padding-right: 14px !important;
+        padding-bottom: 5px !important;
+        padding-left: 14px !important;
+        border-radius: 0;
+    }
+
+    .signup-head > div.signup-title {
+        top: 190px;
+        left: 9%;
+        width: 145px;
+    }
+
+    .signup-title h1 {
+        font-size: 39px !important;
+    }
+
+    .signup-head > div.signup-google-block {
+        top: 179px;
+        right: 5%;
+        width: 105px;
+    }
+
+    .signup-google-block > span {
+        margin-bottom: 4px;
+        font-size: 7px;
+    }
+
+    .signup-google-block .signup-google {
+        min-width: 112px;
+        min-height: 38px;
+        padding: 7px 11px;
+        font-size: 11px;
+    }
+
+    .signup-google-block .signup-google span {
+        font-size: 13px;
+    }
+
+    .signup-google-block .signup-google b {
+        font-size: 18px;
+    }
+
+    .signup-form {
+        flex: 1;
+        row-gap: 6px;
+        column-gap: 9px;
+    }
+
+    .signup-submit {
+        width: 58%;
+        height: 46px;
+        margin-top: 0;
+        font-size: 14px;
+    }
+
+    .signup-submit b {
+        width: 36px;
+        height: 36px;
+        font-size: 18px;
+    }
+
+    .signup-login {
+        margin-top: 3px;
+        margin-bottom: 0;
+        font-size: 12px;
+    }
+}
+
+.member-theme-female .signup-gender span {
+    border-color: #111;
+}
+
+.member-theme-female .signup-card {
+    --signup-lower: #c94f7f;
+    --signup-ink: #fff;
+    --signup-input: rgba(48, 5, 23, .24);
+}
+
+.member-theme-female .signup-field input,
+.member-theme-female .signup-birthday input {
+    border-color: rgba(255, 255, 255, .58);
+}
+
+.member-theme-female .signup-field input::placeholder,
+.member-theme-female .signup-birthday input::placeholder {
+    color: rgba(255, 255, 255, .72);
+}
+
+.member-theme-female .signup-gender span,
+.member-theme-female .signup-consent,
+.member-theme-female .signup-login,
+.member-theme-female .signup-login a {
+    color: #fff;
+}
+
+.member-theme-female .signup-gender input:checked + span {
+    color: #fff;
+    background: #090909;
+}
+
+.member-theme-female .birthday-picker {
+    color: #fff;
+    background: #a93665;
+    border-color: rgba(255, 255, 255, .42);
+    box-shadow: 0 28px 80px rgba(65, 4, 29, .5);
+}
+
+.member-theme-female .birthday-picker header > button,
+.member-theme-female .birthday-close {
+    color: #a93665;
+    background: #fff;
+}
+
+.member-theme-female .birthday-picker header .birthday-choice > button {
+    color: #fff;
+    background: #c94f7f;
+    border-color: rgba(255, 255, 255, .42);
+}
+
+.member-theme-female .birthday-days button {
+    color: #fff;
+    background: rgba(255, 255, 255, .15);
+}
+
+.member-theme-female .birthday-days button:hover,
+.member-theme-female .birthday-days button.selected {
+    color: #a93665;
+    background: #fff;
+}
+
+.member-theme-female .birthday-choice-menu {
+    background: #b83f6f;
+    border-color: rgba(255, 255, 255, .4);
+}
+
+.member-theme-female .birthday-picker .birthday-choice-menu button {
+    color: #fff;
+}
+
+.member-theme-female .birthday-picker .birthday-choice-menu button:hover {
+    color: #a93665;
+    background: #fff;
+}
+
+/* Female membership theme: white upper field and rich pink profile/form area. */
+.member-theme-female .signup-card{--signup-upper:#fff;--signup-lower:#c93d76;--signup-ink:#fff;--signup-input:rgba(76,4,33,.2)}
+.member-theme-female .signup-head>a:first-child{color:#c93d76!important}
+.member-theme-female .signup-google{color:#c93d76;background:#fff;border:1px solid #c93d76}
+.member-theme-female .signup-field input,.member-theme-female .signup-birthday input{border-color:rgba(255,255,255,.72)!important}
+.member-theme-female .signup-gender span{color:#fff;border-color:rgba(255,255,255,.78);background:transparent}
+.member-theme-female .signup-gender input:checked+span{color:#c93d76;background:#fff}
+.member-theme-female .signup-submit{color:#c93d76!important;background:#fff!important}.member-theme-female .signup-submit b{color:#fff;background:#c93d76}
+
+/* Google belongs directly below the heading, aligned to its left edge. */
+.signup-head>div.signup-title{top:218px!important;left:9%!important}
+.signup-head>div.signup-google-block{top:286px!important;right:auto!important;left:9%!important;width:230px!important;align-items:flex-start}
+.signup-google-block>span{width:210px;display:flex!important;align-items:center;gap:9px;margin-bottom:7px;font-size:11px;font-weight:800;letter-spacing:0;text-transform:none}
+.signup-google-block>span::before,.signup-google-block>span::after{content:"";height:1px;flex:1;background:currentColor;opacity:.45}
+.signup-google-block .signup-google{min-width:210px;min-height:45px;padding:9px 14px;border-color:#2ed9ff!important;box-shadow:0 0 7px rgba(46,217,255,.85)}
+.signup-google-block .signup-google span{font-size:13px}
+.signup-submit{border:2px solid color-mix(in srgb,var(--signup-ink) 72%,transparent)!important;box-shadow:0 5px 0 color-mix(in srgb,var(--signup-ink) 34%,transparent),0 9px 16px rgba(0,0,0,.2);transform:translateY(-3px);transition:transform .16s,box-shadow .16s}
+.signup-submit:hover{transform:translateY(-5px)}.signup-submit:active{transform:translateY(1px);box-shadow:0 1px 0 color-mix(in srgb,var(--signup-ink) 34%,transparent)}
+.signup-submit b{border:1px solid currentColor}
+@media(max-width:560px){
+ .signup-head>div.signup-title{top:154px!important;left:8%!important}
+ .signup-head>div.signup-google-block{top:207px!important;right:auto!important;left:8%!important;width:175px!important}
+ .signup-google-block>span{width:165px;margin-bottom:4px;font-size:8px}
+ .signup-google-block .signup-google{min-width:165px;min-height:36px;padding:6px 10px}
+ .signup-google-block .signup-google span{display:inline!important;font-size:10px}
+}
+
+.signup-submit{justify-content:center!important;gap:34px;padding-inline:6px!important}
+.signup-submit>span{font-size:20px;line-height:1}
+.signup-submit b{flex:0 0 auto;font-size:25px}
+@media(max-width:560px){
+ .signup-submit{gap:24px}
+ .signup-submit>span{font-size:15px}
+ .signup-submit b{font-size:20px}
+}
+
+/* Reference-accurate type, alignment and visible inverted male state. */
+.signup-title h1{font-family:Impact,"Arial Narrow",sans-serif!important;letter-spacing:.01em}
+.signup-form{justify-content:start;align-content:space-between}
+.signup-field label,.signup-gender legend,.signup-birthday>label{font-size:12px!important;font-weight:900;letter-spacing:.12em;text-align:center}
+.signup-gender span{display:flex!important;align-items:center;justify-content:center;gap:10px}
+.signup-gender span::before{content:"";width:18px;height:18px;flex:0 0 auto;border:1.5px solid currentColor;border-radius:50%}
+.signup-gender input:checked+span::before{background:currentColor;box-shadow:inset 0 0 0 5px var(--signup-input)}
+.member-theme-male .signup-google-block{color:#fff!important}
+.member-theme-male .signup-google-block>span{color:#fff!important}
+.member-theme-male .signup-google{color:#111!important;background:#fff!important}
+.member-theme-male .signup-field label,.member-theme-male .signup-gender legend,.member-theme-male .signup-birthday>label,.member-theme-male .signup-login,.member-theme-male .signup-login a{color:#fff!important}
+.member-theme-male .signup-field input{color:#fff!important;border-color:rgba(255,255,255,.48)!important}
+@media(max-width:560px){
+ .signup-field label,.signup-gender legend,.signup-birthday>label{font-size:9px!important}
+ .signup-gender span{gap:7px}.signup-gender span::before{width:14px;height:14px}
+ .signup-gender input:checked+span::before{box-shadow:inset 0 0 0 4px var(--signup-input)}
+}
+
+@media(max-width:560px){
+ .signup-head>div.signup-title{left:9%!important;width:220px!important}
+ .signup-head>div.signup-google-block{left:9%!important;width:230px!important;align-items:flex-start}
+ .signup-google-block>span{width:230px!important;justify-content:center}
+ .signup-google-block .signup-google{width:230px!important;min-width:230px!important;justify-content:center!important}
+ .signup-google-block .signup-google span{white-space:nowrap;font-size:11px!important;letter-spacing:.02em}
+}
+@media(max-width:370px){
+ .signup-head>div.signup-google-block,.signup-google-block>span{width:210px!important}
+ .signup-google-block .signup-google{width:210px!important;min-width:210px!important}
+}
+
+/* One shared axis for heading, divider and Google action. */
+.signup-head>div.signup-title,.signup-head>div.signup-google-block{left:9%!important;width:230px!important;text-align:center}
+.signup-title h1{width:230px;text-align:center}
+.signup-google-block>span{width:230px!important;justify-content:center;color:#111!important;text-align:center}
+.signup-google-block>span::before,.signup-google-block>span::after{height:1px;min-width:0;background:currentColor;opacity:.7}
+.signup-google-block .signup-google{width:230px!important;min-width:230px!important}
+.member-theme-male .signup-google-block>span,.member-theme-female .signup-google-block>span{color:#fff!important}
+.signup-submit{width:40%!important;gap:22px!important}
+@media(max-width:560px){
+ .signup-head>div.signup-title,.signup-head>div.signup-google-block{left:9%!important;width:220px!important}
+ .signup-title h1,.signup-google-block>span{width:220px!important}
+ .signup-google-block .signup-google{width:220px!important;min-width:220px!important}
+ .signup-submit{width:50%!important;gap:17px!important}
+}
+@media(max-width:370px){
+ .signup-head>div.signup-title,.signup-head>div.signup-google-block{width:205px!important}
+ .signup-title h1,.signup-google-block>span{width:205px!important}
+ .signup-google-block .signup-google{width:205px!important;min-width:205px!important}
+ .signup-submit{width:52%!important}
+}
+
+/* Match the supplied composition: left-set title, wider action beginning farther left. */
+.signup-head>div.signup-title{left:6%!important;text-align:left!important}
+.signup-title h1{width:auto!important;text-align:left!important;white-space:nowrap}
+.signup-head>div.signup-google-block{left:1%!important;text-align:center!important}
+@media(max-width:560px){
+ .signup-head>div.signup-title{left:5%!important;text-align:left!important}
+ .signup-head>div.signup-google-block{left:0!important}
+}
+
+/* Final Google reference proportions. */
+.signup-head>div.signup-title{width:190px!important}.signup-title h1{font-size:47px!important}
+.signup-head>div.signup-google-block{width:190px!important}
+.signup-google-block>span{width:190px!important;margin-bottom:8px!important;color:#111!important;font-size:10px!important;font-weight:800!important}
+.signup-google-block .signup-google{width:190px!important;min-width:190px!important;min-height:42px!important;padding:8px 13px!important;gap:10px!important;color:#111!important;background:#fff!important;border:1.5px solid #28cfff!important;border-radius:22px!important;box-shadow:0 0 6px rgba(40,207,255,.95),0 4px 10px rgba(0,0,0,.12)!important}
+.signup-google-block .signup-google svg{width:20px;height:20px;flex:0 0 20px}
+.signup-google-block .signup-google span{font-family:Arial,sans-serif;font-size:12px!important;font-weight:500!important;letter-spacing:0!important;white-space:nowrap}
+.member-theme-male .signup-google-block>span,.member-theme-female .signup-google-block>span{color:#fff!important}
+.signup-submit{justify-content:space-between!important;gap:0!important;padding:5px 6px 5px 18px!important}
+@media(max-width:560px){
+ .signup-head>div.signup-title{width:170px!important}.signup-title h1{font-size:35px!important}
+ .signup-head>div.signup-google-block,.signup-google-block>span{width:170px!important}
+ .signup-google-block .signup-google{width:170px!important;min-width:170px!important;min-height:38px!important;padding:7px 11px!important;gap:8px!important}
+ .signup-google-block .signup-google svg{width:18px;height:18px;flex-basis:18px}
+ .signup-google-block .signup-google span{font-size:10px!important}
+ .signup-submit{gap:0!important;padding:4px 5px 4px 14px!important}
+}
+
+/* Glossy chrome-edged 3D action inspired by the supplied reference. */
+.signup-submit{position:relative;isolation:isolate;overflow:hidden;color:#fff!important;background:linear-gradient(180deg,#575757 0%,#292929 38%,#020202 42%,#080808 100%)!important;border:3px solid #d8d8d8!important;outline:1px solid #555;box-shadow:inset 0 2px 2px rgba(255,255,255,.65),inset 0 -4px 4px rgba(255,255,255,.16),0 3px 0 #555,0 7px 13px rgba(0,0,0,.38)!important}
+.signup-submit::before{content:"";position:absolute;z-index:-1;top:3px;right:5px;left:5px;height:43%;border-radius:12px 12px 48% 48%;background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,.04));pointer-events:none}
+.signup-submit>span{position:relative;z-index:2;color:#fff;text-shadow:0 1px 2px #000}
+.signup-submit b{position:relative;z-index:2;color:#050505!important;background:linear-gradient(180deg,#fff,#d9d9d9)!important;border:1px solid #fff!important;box-shadow:inset 0 1px 1px #fff,0 1px 3px rgba(0,0,0,.55)}
+.signup-submit:hover{box-shadow:inset 0 2px 2px rgba(255,255,255,.72),inset 0 -4px 4px rgba(255,255,255,.18),0 5px 0 #4c4c4c,0 9px 16px rgba(0,0,0,.42)!important}
+.signup-submit:active{transform:translateY(2px);box-shadow:inset 0 2px 5px rgba(0,0,0,.75),inset 0 -1px 2px rgba(255,255,255,.2),0 1px 0 #555!important}
+.member-theme-male .signup-submit>span,.member-theme-female .signup-submit>span{color:#050505!important;text-shadow:none!important}
+.member-theme-male .signup-submit b,.member-theme-female .signup-submit b{color:#050505!important;background:linear-gradient(180deg,#fff,#dedede)!important;border-color:#b9b9b9!important}
+
+.signup-edit-back{position:absolute!important;top:8px!important;left:0!important;width:40px;height:40px;display:grid;place-items:center;color:var(--signup-upper-ink)!important;border:1px solid currentColor;border-radius:12px;font-size:24px!important;letter-spacing:0!important;text-decoration:none;z-index:5}
+.signup-photo-picker{position:absolute;z-index:5;top:205px;right:7%;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;color:var(--signup-ink)}
+.signup-photo-preview{width:112px;height:112px;display:block;overflow:hidden;background:#fff;border:4px solid rgba(255,255,255,.75);border-radius:50%;box-shadow:0 8px 20px rgba(0,0,0,.22)}
+.signup-photo-preview img,.signup-photo-preview svg{width:100%;height:100%;display:block;object-fit:cover}
+.signup-photo-preview img.is-placeholder{box-sizing:border-box;padding:10px;object-fit:contain!important}
+.signup-photo-picker>b{margin-top:6px;color:#fff!important;font:900 9px/1 Arial,sans-serif;letter-spacing:.12em;white-space:nowrap}
+.member-theme-male .signup-photo-picker,.member-theme-female .signup-photo-picker{color:#fff}
+@media(max-width:560px){
+ .signup-edit-back{top:2px!important;width:32px;height:32px;border-radius:9px;font-size:19px!important}
+ .signup-photo-picker{top:145px;right:5%;gap:3px}
+ .signup-photo-preview{width:82px;height:82px;border-width:3px}
+ .signup-photo-picker>b{margin-top:5px;font-size:7px}
+}
+
+.member-editing .signup-head>div.signup-title{left:3%!important;width:285px!important}.member-editing .signup-title h1{width:100%!important;font-size:43px!important;white-space:nowrap}
+.member-editing .signup-photo-picker{top:180px;right:7%;color:#111!important;gap:7px}
+.member-editing .signup-photo-preview{width:118px;height:118px;border:5px solid #fff;box-shadow:0 10px 26px rgba(0,0,0,.24)}
+.member-editing .signup-photo-picker>b{padding:5px 9px;color:#111;background:rgba(255,255,255,.82);border-radius:7px;font-size:8px}
+.member-theme-female.member-editing .signup-photo-picker>b{color:#c93d76}
+@media(max-width:560px){
+ .member-editing .signup-head>div.signup-title{top:166px!important;left:1%!important;width:205px!important}
+ .member-editing .signup-title h1{font-size:31px!important}
+ .member-editing .signup-photo-picker{top:131px;right:4%;gap:5px}
+ .member-editing .signup-photo-preview{width:91px;height:91px;border-width:4px}
+ .member-editing .signup-photo-picker>b{padding:4px 7px;font-size:6px}
+}
+
+.member-editing .signup-head>div.signup-title{left:0!important;width:340px!important;text-align:center!important;transform:translateX(-70px)}
+.member-editing .signup-title h1{width:100%!important;text-align:center!important}
+@media(max-width:560px){
+ .member-editing .signup-head>div.signup-title{left:0!important;width:340px!important;transform:translateX(-85px)}
+ .member-editing .signup-title h1{width:100%!important;text-align:center!important}
+}

@@ -202,6 +202,27 @@
                     </span>
                     Customers
                 </a>
+                <a
+                    href="{{ route('admin.members.index') }}"
+                    class="admin-nav-link {{ request()->routeIs('admin.members.*') ? 'active' : '' }}"
+                >
+                    <span class="admin-nav-icon">
+                        <i class="fa-solid fa-id-card"></i>
+                    </span>
+                    Members
+                </a>
+                <a href="{{ route('admin.people-profiles.index') }}" class="admin-nav-link {{ request()->routeIs('admin.people-profiles.*') ? 'active' : '' }}">
+                    <span class="admin-nav-icon"><i class="fa-solid fa-people-roof"></i></span>
+                    HR & Payroll
+                </a>
+                <a href="{{ route('admin.investments.index') }}" class="admin-nav-link {{ request()->routeIs('admin.investments.*') || request()->routeIs('admin.investors.*') || request()->routeIs('admin.investment-entries.*') ? 'active' : '' }}">
+                    <span class="admin-nav-icon"><i class="fa-solid fa-sack-dollar"></i></span>
+                    Investments & Investors
+                </a>
+                <a href="{{ route('admin.milestones.index') }}" class="admin-nav-link {{ request()->routeIs('admin.milestones.*') ? 'active' : '' }}">
+                    <span class="admin-nav-icon"><i class="fa-solid fa-trophy"></i></span>
+                    Member Milestones
+                </a>
             @endif
 
             @if ($canAccess('sweet_cool'))
@@ -225,18 +246,6 @@
                         <i class="fa-solid fa-chart-line"></i>
                     </span>
                     Reports
-                </a>
-            @endif
-
-            @if ($canAccess('admin_users'))
-                <a
-                    href="{{ route('admin.admin-users.index') }}"
-                    class="admin-nav-link {{ request()->routeIs('admin.admin-users.*') ? 'active' : '' }}"
-                >
-                    <span class="admin-nav-icon">
-                        <i class="fa-solid fa-user-shield"></i>
-                    </span>
-                    Admins
                 </a>
             @endif
 
@@ -457,6 +466,42 @@
     }
 
     applyAdminTheme(document.documentElement.dataset.adminTheme || 'light');
+
+    document
+        .querySelectorAll('[data-investment-editable-help]')
+        .forEach(function (box) {
+            if (box.dataset.infoHelpReady === '1') {
+                return;
+            }
+
+            box.dataset.infoHelpReady = '1';
+
+            const key = box.dataset.investmentEditableHelp;
+            const copy = box.querySelector('[data-investment-help-copy]');
+            const editButton = box.querySelector('.investment-help-edit-button');
+            const saved = window.localStorage.getItem(key);
+
+            if (saved && copy) {
+                copy.textContent = saved;
+            }
+
+            editButton?.addEventListener('click', function () {
+                copy?.setAttribute('contenteditable', 'true');
+                copy?.focus();
+            });
+
+            copy?.addEventListener('blur', function () {
+                copy.removeAttribute('contenteditable');
+                window.localStorage.setItem(key, copy.textContent.trim());
+            });
+
+            copy?.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    copy.blur();
+                }
+            });
+        });
 
     themeToggle?.addEventListener('click', function () {
         const currentTheme = document.documentElement.dataset.adminTheme;

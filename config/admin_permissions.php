@@ -90,5 +90,6 @@ return [
         'admin_users.assign_permissions' => 'Assign Permissions',
         'orders.send_steadfast' => 'Send Orders to Steadfast',
         'reports.export' => 'Export Reports',
+        'info.editing' => 'Info Editing',
     ],
 ];

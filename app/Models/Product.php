@@ -56,6 +56,7 @@ class Product extends Model
         'care_instructions',
         'is_featured',
         'is_new_arrival',
+        'is_sales_badge',
         'status',
     ];
 
@@ -67,6 +68,7 @@ class Product extends Model
         'colors' => 'array',
         'is_featured' => 'boolean',
         'is_new_arrival' => 'boolean',
+        'is_sales_badge' => 'boolean',
     ];
 
     

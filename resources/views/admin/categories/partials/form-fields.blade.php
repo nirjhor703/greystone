@@ -44,7 +44,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_slug">
-                    Slug <span>*</span>
+                    Slug <span>*</span> @include('admin.partials.info-help', ['key' => 'category_form_slug', 'text' => 'Category URL/name identifier. Usually name theke auto generate hoy.'])
                 </label>
 
                 <input
@@ -63,7 +63,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_prefix">
-                    Prefix <span>*</span>
+                    Prefix <span>*</span> @include('admin.partials.info-help', ['key' => 'category_form_prefix', 'text' => 'Product code generate korar short code. Example: SH, BG.'])
                 </label>
 
                 <input

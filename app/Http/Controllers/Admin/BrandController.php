@@ -69,6 +69,18 @@ class BrandController extends Controller
                 'offer_banner_urls' => collect($brand->offer_banners ?? [])
                     ->map(fn ($banner) => Storage::url($banner))
                     ->values(),
+
+                'signup_banner_url' => $brand->signup_banner
+                    ? Storage::url($brand->signup_banner)
+                    : null,
+
+                'sales_banner_url' => $brand->sales_banner
+                    ? Storage::url($brand->sales_banner)
+                    : null,
+
+                'coupons_banner_url' => $brand->coupons_banner
+                    ? Storage::url($brand->coupons_banner)
+                    : null,
             ],
         ]);
     }
@@ -177,6 +189,27 @@ class BrandController extends Controller
             ],
 
             'offer_banners.*' => [
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:4096',
+            ],
+
+            'signup_banner' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:4096',
+            ],
+
+            'sales_banner' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:4096',
+            ],
+
+            'coupons_banner' => [
+                'nullable',
                 'image',
                 'mimes:jpg,jpeg,png,webp',
                 'max:4096',
@@ -307,7 +340,14 @@ class BrandController extends Controller
         array $data,
         ?Brand $brand = null
     ): array {
-        foreach (['logo', 'mobile_logo', 'favicon'] as $field) {
+        foreach ([
+            'logo',
+            'mobile_logo',
+            'favicon',
+            'signup_banner',
+            'sales_banner',
+            'coupons_banner',
+        ] as $field) {
             if (!$request->hasFile($field)) {
                 unset($data[$field]);
                 continue;
@@ -317,9 +357,17 @@ class BrandController extends Controller
                 Storage::disk('public')->delete($brand->{$field});
             }
 
+            $directory = in_array($field, [
+                'signup_banner',
+                'sales_banner',
+                'coupons_banner',
+            ], true)
+                ? 'brands/banners'
+                : 'brands';
+
             $data[$field] = $request
                 ->file($field)
-                ->store('brands', 'public');
+                ->store($directory, 'public');
         }
 
         unset($data['offer_banners']);
@@ -342,7 +390,14 @@ class BrandController extends Controller
 
     private function deleteBrandFiles(Brand $brand): void
     {
-        foreach (['logo', 'mobile_logo', 'favicon'] as $field) {
+        foreach ([
+            'logo',
+            'mobile_logo',
+            'favicon',
+            'signup_banner',
+            'sales_banner',
+            'coupons_banner',
+        ] as $field) {
             if ($brand->{$field}) {
                 Storage::disk('public')->delete($brand->{$field});
             }

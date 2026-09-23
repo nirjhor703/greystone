@@ -35,6 +35,10 @@
         href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800,900&display=swap"
         rel="stylesheet"
     >
+    <link
+        href="https://fonts.bunny.net/css?family=anek-bangla:400,500,600,700,800&display=swap"
+        rel="stylesheet"
+    >
 
     @vite([
         'resources/css/app.css',
@@ -65,13 +69,16 @@
     $brandSlug = $brand->slug;
     $isPinkTouch = $brandSlug === 'pink-touch';
     $brandLogo = $brand->mobile_logo ?: $brand->logo;
-    $storeUser = auth()->user();
+    $storeUser = App\Models\Member::find(session('member_id'));
     $brandOrder = ['grey-stone' => 1, 'blue-shades' => 2, 'pink-touch' => 3];
     $switchBrands = $brands
         ->reject(fn ($switchBrand) => $switchBrand->id === $brand->id)
         ->sortBy(fn ($switchBrand) => $brandOrder[$switchBrand->slug] ?? 99)
         ->take(2);
     $offerBanners = collect($brand->offer_banners ?? [])->filter();
+    $offerBannerUrls = $offerBanners
+        ->map(fn ($banner) => Storage::url($banner))
+        ->values();
     $posterRatio = '16:7';
     $posterPixelGuide = '1600 x 700 px';
     $defaultAudience = $selectedAudience ?? 'men';
@@ -79,6 +86,35 @@
     $activeCategoryName = $selectedCategory?->name ?? '';
     $productsPagination = $products ?? null;
     $searchProductsCollection = $searchProducts ?? collect();
+    $activeCouponsCollection = $activeCoupons ?? collect();
+    $saleProductsCollection = $searchProductsCollection
+        ->filter(fn ($product) => $product->is_sales_badge)
+        ->values();
+    $signupBannerUrl = $brand->signup_banner
+        ? Storage::url($brand->signup_banner)
+        : null;
+    $salesBannerUrl = $brand->sales_banner
+        ? Storage::url($brand->sales_banner)
+        : null;
+    $couponsBannerUrl = $brand->coupons_banner
+        ? Storage::url($brand->coupons_banner)
+        : null;
+    $messengerUrl = null;
+    if ($brand->facebook_link) {
+        $facebookLink = trim((string) $brand->facebook_link);
+        $facebookQuery = parse_url($facebookLink, PHP_URL_QUERY);
+        parse_str((string) $facebookQuery, $facebookParams);
+        $facebookId = $facebookParams['id'] ?? null;
+        if ($facebookId) {
+            $messengerUrl = 'https://m.me/'.$facebookId;
+        } elseif (preg_match('~facebook\.com/(?:profile\.php|share/)?([^/?#&]+)~i', $facebookLink, $matches)) {
+            $facebookSlug = trim((string) ($matches[1] ?? ''), '/');
+            if ($facebookSlug && $facebookSlug !== 'profile.php' && $facebookSlug !== 'share') {
+                $messengerUrl = 'https://m.me/'.$facebookSlug;
+            }
+        }
+        $messengerUrl = $messengerUrl ?: $facebookLink;
+    }
     $searchMaxPrice = max(
         1000,
         (int) ceil(
@@ -88,9 +124,29 @@
             ?: 1000
         )
     );
+    $brandProductCount = $searchProductsCollection
+        ->filter(fn ($product) => (int) ($product->brand_id ?? $product->brand?->id) === (int) $brand->id)
+        ->count();
 @endphp
 
 <div class="storefront storefront-{{ $brandSlug }}">
+    <div
+        class="store-language-modal"
+        data-language-modal
+        aria-hidden="true"
+        data-no-translate
+    >
+        <div class="store-language-modal-card" role="dialog" aria-modal="true" aria-labelledby="storeLanguageTitle">
+            <span class="store-language-modal-eyebrow">Choose language</span>
+            <h2 id="storeLanguageTitle">আপনার ভাষা বেছে নিন</h2>
+            <p>English বা বাংলা—যেটা বেছে নেবেন, পুরো storefront সেটাই থাকবে।</p>
+            <div class="store-language-modal-actions">
+                <button type="button" data-language-toggle="en">English</button>
+                <button type="button" data-language-toggle="bn">বাংলা</button>
+            </div>
+        </div>
+    </div>
+
     <div
         class="store-offer-strip"
         id="storePromoStrip"
@@ -196,7 +252,7 @@
                     type="button"
                     class="store-header-icon-button"
                     id="storeSearchButton"
-                    aria-label="Search products"
+                    aria-label="Open search"
                 >
                     <i class="fa-solid fa-magnifying-glass"></i>
                 </button>
@@ -228,16 +284,16 @@
                         @if ($storeUser)
                             <div class="store-nav-auth-actions store-nav-auth-actions-single">
                                 <a
-                                    href="{{ route('profile.edit') }}"
+                                    href="{{ route('member.profile') }}"
                                     class="store-nav-auth-button is-primary"
                                 >
-                                    <i class="fa-regular fa-user"></i>
+                                    @if($storeUser->avatar_url)<img class="store-member-avatar" src="{{ $storeUser->avatar_url }}" alt="">@else<img class="store-member-avatar" src="{{ asset('images/member-camera-placeholder.png') }}" alt="">@endif
                                     Account
                                 </a>
 
                                 <form
                                     method="POST"
-                                    action="{{ route('logout') }}"
+                                    action="{{ route('member.logout') }}"
                                 >
                                     @csrf
 
@@ -253,7 +309,7 @@
                         @else
                             <div class="store-nav-auth-actions">
                                 <a
-                                    href="{{ route('login') }}"
+                                    href="{{ route('member.login') }}"
                                     class="store-nav-auth-button is-primary"
                                 >
                                     <i class="fa-solid fa-right-to-bracket"></i>
@@ -261,7 +317,7 @@
                                 </a>
 
                                 <a
-                                    href="{{ route('register') }}"
+                                    href="{{ route('member.register') }}"
                                     class="store-nav-auth-button"
                                 >
                                     <i class="fa-solid fa-user-plus"></i>
@@ -272,6 +328,11 @@
                     </div>
 
                     <div class="store-nav-main">
+                        <div class="store-language-switch" aria-label="Language selector">
+                            <button type="button" data-language-toggle="en">EN</button>
+                            <button type="button" data-language-toggle="bn">বাংলা</button>
+                        </div>
+
                         <a
                             href="{{ route('brand.show', $brand->slug) }}"
                             class="store-nav-link"
@@ -420,7 +481,7 @@
         <div class="store-search-panel">
             <div class="store-search-head">
                 <div>
-                    <span>Search</span>
+                    <span id="storeSearchModeLabel">Search</span>
                     <strong>{{ $brand->name }}</strong>
                 </div>
 
@@ -586,6 +647,12 @@
                         $searchPrice = !is_null($product->sale_price)
                             ? (float) $product->sale_price
                             : (float) $product->regular_price;
+                        $searchSavings = $product->isOnSale()
+                            ? max(
+                                ((float) $product->regular_price) - ((float) $product->sale_price),
+                                0
+                            )
+                            : 0;
                         $searchAudience = $product->audience ?: 'both';
                         $searchCategoryName = $product->category?->name ?? 'Product';
                         $searchCategorySlug = $product->category?->slug ?? '';
@@ -595,7 +662,7 @@
                         $searchTags = collect([
                             $product->is_featured ? 'featured' : null,
                             $product->is_new_arrival ? 'new' : null,
-                            $product->isOnSale() ? 'sale' : null,
+                            $product->is_sales_badge ? 'sale' : null,
                             $searchAudience,
                             $searchAudience === 'both' ? 'men women' : null,
                         ])->filter()->implode(' ');
@@ -649,7 +716,15 @@
                             </em>
 
                             <div class="store-search-side-bottom">
-                                <b>৳{{ number_format($searchPrice, 0) }}</b>
+                                <div class="store-search-price-stack">
+                                    <b>৳{{ number_format($searchPrice, 0) }}</b>
+
+                                    @if ($searchSavings > 0)
+                                        <span class="store-search-savings">
+                                            -৳{{ number_format($searchSavings, 0) }}
+                                        </span>
+                                    @endif
+                                </div>
 
                                 <button
                                     type="button"
@@ -694,6 +769,160 @@
         </div>
     </div>
 
+    <div
+        class="store-modal storefront"
+        id="storeCouponOverlay"
+        aria-hidden="true"
+    >
+        <div
+            class="store-modal-backdrop"
+            data-close-coupon-modal
+        ></div>
+
+        <div class="store-modal-dialog store-coupon-dialog">
+            <button
+                type="button"
+                class="store-modal-close"
+                id="storeCouponClose"
+                aria-label="Close coupons"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="store-coupon-head">
+                <span>Active Coupons</span>
+                <strong>{{ $brand->name }}</strong>
+                <p>
+                    Apply now or save one for your next checkout.
+                </p>
+            </div>
+
+            <div
+                class="store-coupon-feedback"
+                id="storeCouponFeedback"
+                hidden
+            ></div>
+
+            <div class="store-coupon-list">
+                @forelse ($activeCouponsCollection as $coupon)
+                    <article class="store-coupon-card {{ mb_strlen($coupon->discountLabel()) > 7 ? 'has-long-discount' : '' }}">
+                        <div class="store-coupon-discount"><span>DISCOUNT</span><b>{{ $coupon->discountLabel() }}</b></div>
+                        <div class="store-coupon-copy">
+                            <strong>COUPON</strong>
+
+                            <div class="store-coupon-meta">
+                                <code>{{ $coupon->code }}</code>
+                                @if ($coupon->new_customer_only)
+                                    <em>New customer</em>
+                                @endif
+                            </div>
+
+                            <p>
+                                @if ($coupon->expires_at)
+                                    Valid until {{ $coupon->expires_at->format('d M Y') }}
+                                @else
+                                    Member exclusive
+                                @endif
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="store-coupon-apply"
+                            data-coupon-apply="{{ $coupon->code }}"
+                        >
+                            Apply
+                        </button>
+                    </article>
+                @empty
+                    <div class="store-coupon-empty">
+                        No active coupons are live right now.
+                    </div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+
+    <div
+        class="store-modal storefront"
+        id="storeMessageOverlay"
+        aria-hidden="true"
+    >
+        <div
+            class="store-modal-backdrop"
+            data-close-message-modal
+        ></div>
+
+        <div class="store-modal-dialog store-contact-dialog">
+            <button
+                type="button"
+                class="store-modal-close store-contact-close"
+                id="storeMessageClose"
+                aria-label="Close contact options"
+            >
+                <span aria-hidden="true"></span>
+            </button>
+
+            <div class="store-contact-stage" aria-label="Choose contact platform">
+                <span class="store-contact-stage-slash" aria-hidden="true"></span>
+
+                @if ($messengerUrl)
+                    <a
+                        href="{{ $messengerUrl }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="store-contact-icon-button is-messenger"
+                        aria-label="Open Messenger"
+                    >
+                        <i class="fa-brands fa-facebook-messenger"></i>
+                        <span>Messenger</span>
+                    </a>
+                @endif
+
+                @if ($brand->whatsapp_link)
+                    <a
+                        href="{{ $brand->whatsapp_link }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="store-contact-icon-button is-whatsapp"
+                        aria-label="Open WhatsApp"
+                    >
+                        <i class="fa-brands fa-whatsapp"></i>
+                        <span>WhatsApp</span>
+                    </a>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <div
+        class="store-modal storefront"
+        id="storeOfferBannerOverlay"
+        aria-hidden="true"
+    >
+        <div
+            class="store-modal-backdrop"
+            data-close-offer-banner-modal
+        ></div>
+
+        <div class="store-modal-dialog store-offer-banner-dialog">
+            <button
+                type="button"
+                class="store-modal-close"
+                id="storeOfferBannerClose"
+                aria-label="Close offer banner"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <img
+                id="storeOfferBannerPreviewImage"
+                src=""
+                alt="Offer banner preview"
+            >
+        </div>
+    </div>
+
     <main>
         {{-- Mobile-first launch surface --}}
         <section class="store-launch">
@@ -720,47 +949,54 @@
                 </div>
 
                 <section
-                    class="store-poster-carousel"
-                    aria-label="Offer banners"
-                    data-poster-ratio="{{ $posterRatio }}"
-                    data-poster-size="{{ $posterPixelGuide }}"
+                    class="store-banner-actions"
+                    aria-label="Store actions"
                 >
-                    <div class="store-poster-strip" data-offer-slider>
-                        @forelse ($offerBanners as $banner)
-                            <article class="store-poster-card image-card">
-                                <img
-                                    src="{{ Storage::url($banner) }}"
-                                    alt="{{ $brand->name }} offer banner"
-                                    loading="lazy"
-                                >
-                            </article>
-                        @empty
-                            <article class="store-poster-card">
-                                <div>
-                                    <span>Featured Items</span>
-                                    <strong>50% OFF</strong>
-                                    <small>Canva poster slot · {{ $posterPixelGuide }}</small>
-                                </div>
-                            </article>
-
-                            <article class="store-poster-card ghost">
-                                <div>
-                                    <span>New Drop</span>
-                                    <strong>Fresh Picks</strong>
-                                    <small>Upload brand offer banners from admin.</small>
-                                </div>
-                            </article>
-                        @endforelse
-                    </div>
+                    @if (!$storeUser)
+                        <a
+                            href="{{ route('member.register') }}"
+                            class="store-banner-action-card is-signup"
+                            aria-label="Open sign up page"
+                            @if ($signupBannerUrl)
+                                style="--banner-image:url('{{ $signupBannerUrl }}')"
+                            @endif
+                        ></a>
+                    @endif
 
                     <button
                         type="button"
-                        class="store-poster-arrow"
-                        data-offer-next
-                        aria-label="Next offer banner"
-                    >
-                        →
-                    </button>
+                        class="store-banner-action-card is-sale"
+                        id="storeSalesBannerButton"
+                        aria-label="Open sale products"
+                        @if ($salesBannerUrl)
+                            style="--banner-image:url('{{ $salesBannerUrl }}')"
+                        @endif
+                    ></button>
+
+                    <button
+                        type="button"
+                        class="store-banner-action-card is-coupon"
+                        id="storeCouponsBannerButton"
+                        aria-label="Open active coupons"
+                        @if ($couponsBannerUrl)
+                            style="--banner-image:url('{{ $couponsBannerUrl }}')"
+                        @endif
+                    ></button>
+
+                    @foreach ($offerBannerUrls as $offerBannerUrl)
+                        <button
+                            type="button"
+                            class="store-banner-action-card store-offer-banner-card"
+                            data-offer-banner-preview="{{ $offerBannerUrl }}"
+                            aria-label="Open offer banner {{ $loop->iteration }}"
+                        >
+                            <img
+                                src="{{ $offerBannerUrl }}"
+                                alt="{{ $brand->name }} offer banner {{ $loop->iteration }}"
+                                loading="lazy"
+                            >
+                        </button>
+                    @endforeach
                 </section>
 
             </div>
@@ -790,34 +1026,134 @@
                                         'brandSlug' => $brand->slug,
                                         'productSlug' => $product->slug,
                                     ]);
+
+                                    $newArrivalVariants = $product->variants
+                                        ->where('status', true)
+                                        ->groupBy(fn ($variant) => mb_strtolower(trim((string) $variant->color)))
+                                        ->map(function ($colorVariants) {
+                                            $firstVariant = $colorVariants->first();
+                                            $sizes = $colorVariants
+                                                ->where('stock_quantity', '>', 0)
+                                                ->map(fn ($variant) => [
+                                                    'size' => (string) $variant->size,
+                                                    'stock' => (int) $variant->stock_quantity,
+                                                ])
+                                                ->values()
+                                                ->all();
+
+                                            return [
+                                                'color' => (string) ($firstVariant?->color ?? ''),
+                                                'color_hex' => $firstVariant?->color_hex,
+                                                'total_stock' => (int) $colorVariants->sum('stock_quantity'),
+                                                'sizes' => $sizes,
+                                            ];
+                                        })
+                                        ->filter(fn ($group) => $group['total_stock'] > 0 && count($group['sizes']) > 0)
+                                        ->values()
+                                        ->all();
+
+                                    $newArrivalPayload = [
+                                        'brand_id' => (int) $brand->id,
+                                        'product_id' => (int) $product->id,
+                                        'category_id' => (int) $product->category_id,
+                                        'name' => (string) $product->name,
+                                        'product_code' => $product->product_code,
+                                        'price' => (float) ($product->sale_price && (float) $product->sale_price < (float) $product->regular_price
+                                            ? $product->sale_price
+                                            : $product->regular_price),
+                                        'regular_price' => (float) $product->regular_price,
+                                        'sale_price' => !is_null($product->sale_price) ? (float) $product->sale_price : null,
+                                        'stock_quantity' => (int) $product->stock_quantity,
+                                        'image_url' => $newArrivalImage ? Storage::url($newArrivalImage->image) : null,
+                                        'variants' => $newArrivalVariants,
+                                    ];
                                 @endphp
 
-                                <a
-                                    href="{{ $newArrivalUrl }}"
+                                <article
                                     class="store-new-arrival-card"
                                 >
-                                    <span class="store-new-arrival-image">
-                                        @if ($newArrivalImage)
-                                            <img
-                                                src="{{ Storage::url($newArrivalImage->image) }}"
-                                                alt="{{ $product->name }}"
-                                                loading="lazy"
-                                            >
-                                        @else
-                                            <span class="store-new-arrival-fallback">
-                                                {{
-                                                    mb_strtoupper(
-                                                        mb_substr(
-                                                            $product->name,
-                                                            0,
-                                                            1
-                                                        )
+                                    <script type="application/json" data-product-payload>{!! json_encode($newArrivalPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
+                                    @php
+                                        $newArrivalHasSale = !is_null($product->sale_price)
+                                            && (float) $product->sale_price < (float) $product->regular_price;
+                                        $newArrivalDiscountPercentage = $newArrivalHasSale
+                                            ? (int) round(
+                                                (
+                                                    (
+                                                        (float) $product->regular_price
+                                                        - (float) $product->sale_price
                                                     )
-                                                }}
-                                            </span>
-                                        @endif
+                                                    / max((float) $product->regular_price, 1)
+                                                ) * 100
+                                            )
+                                            : 0;
+                                    @endphp
+
+                                    <span class="store-new-arrival-image-shell">
+                                        <span
+                                            @class([
+                                                'store-new-arrival-sale-badge',
+                                                'is-empty' => !($product->is_sales_badge && $newArrivalHasSale && $newArrivalDiscountPercentage > 0),
+                                            ])
+                                        >
+                                            @if ($product->is_sales_badge && $newArrivalHasSale && $newArrivalDiscountPercentage > 0)
+                                                {{ $newArrivalDiscountPercentage }}% off
+                                            @endif
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            class="store-new-arrival-heart store-wishlist-button"
+                                            data-wishlist-button
+                                            data-product-id="{{ $product->id }}"
+                                            data-product-name="{{ $product->name }}"
+                                            data-product-url="{{ $newArrivalUrl }}"
+                                            data-product-image="{{ $newArrivalImage ? Storage::url($newArrivalImage->image) : '' }}"
+                                            data-product-category="{{ $product->category?->name ?? 'Product' }}"
+                                            data-product-price="{{ $product->sale_price && (float) $product->sale_price < (float) $product->regular_price ? (float) $product->sale_price : (float) $product->regular_price }}"
+                                            data-product-brand-name="{{ $brand->name }}"
+                                            data-product-brand-slug="{{ $brand->slug }}"
+                                            aria-label="Add {{ $product->name }} to wishlist"
+                                        >
+                                            <i class="fa-regular fa-heart"></i>
+                                        </button>
+
+                                        <a href="{{ $newArrivalUrl }}" class="store-new-arrival-image">
+                                            @if ($newArrivalImage)
+                                                <img
+                                                    src="{{ Storage::url($newArrivalImage->image) }}"
+                                                    alt="{{ $product->name }}"
+                                                    loading="lazy"
+                                                >
+                                            @else
+                                                <span class="store-new-arrival-fallback">
+                                                    {{
+                                                        mb_strtoupper(
+                                                            mb_substr(
+                                                                $product->name,
+                                                                0,
+                                                                1
+                                                            )
+                                                        )
+                                                    }}
+                                                </span>
+                                            @endif
+                                        </a>
                                     </span>
-                                </a>
+
+                                    <a href="{{ $newArrivalUrl }}" class="store-new-arrival-title">
+                                        {{ $product->name }}
+                                    </a>
+
+                                    <button
+                                        type="button"
+                                        class="store-new-arrival-cart-button js-product-action"
+                                        data-action="cart"
+                                        @disabled((int) $product->stock_quantity <= 0 || empty($newArrivalVariants))
+                                    >
+                                        {{ (int) $product->stock_quantity > 0 && !empty($newArrivalVariants) ? 'Add to cart' : 'Out of stock' }}
+                                    </button>
+                                </article>
                             @endforeach
                         </div>
                     </div>
@@ -990,7 +1326,23 @@
                     class="store-product-grid"
                     id="storeProductGrid"
                 >
-                    @forelse (($productsPagination?->items() ?? []) as $product)
+                    @php
+                        $visibleProducts = collect($productsPagination?->items() ?? []);
+                        $brandProducts = $visibleProducts->filter(
+                            fn ($product) => (int) ($product->brand_id ?? $product->brand?->id) === (int) $brand->id
+                        );
+                        $relatedProducts = $visibleProducts->reject(
+                            fn ($product) => (int) ($product->brand_id ?? $product->brand?->id) === (int) $brand->id
+                        );
+                    @endphp
+
+                    @if ($brandProductCount === 0)
+                        <div class="store-coming-soon-card">
+                            <span>COMING SOON</span>
+                        </div>
+                    @endif
+
+                    @foreach ($brandProducts as $product)
                         @include(
                             'brands.partials.product-card',
                             [
@@ -998,31 +1350,43 @@
                                 'brand' => $brand,
                             ]
                         )
-                    @empty
-                        <div class="store-empty-state">
-                            <div>
-                                <div class="store-empty-icon">
-                                    □
-                                </div>
+                    @endforeach
 
-                                <h3>No products available yet</h3>
-
-                                <p>
-                                    Add an active product for
-                                    {{ $brand->name }}
-                                    from the admin dashboard.
-                                </p>
-                            </div>
+                    @if ($brandProductCount > 0 && $brandProductCount < 10)
+                        <div
+                            class="store-more-coming-soon"
+                            id="storeMoreComingSoon"
+                        >
+                            More Products are coming soon...
                         </div>
-                    @endforelse
+                    @endif
 
-                    <div
-                        class="store-related-divider"
-                        id="crossBrandProductsDivider"
-                        hidden
-                    >
-                        <span>Want more like this</span>
-                    </div>
+                    @if ($relatedProducts->isNotEmpty())
+                        <div
+                            class="store-related-divider"
+                            id="crossBrandProductsDivider"
+                        >
+                            <span>Want more like this</span>
+                        </div>
+
+                        @foreach ($relatedProducts as $product)
+                            @include(
+                                'brands.partials.product-card',
+                                [
+                                    'product' => $product,
+                                    'brand' => $brand,
+                                ]
+                            )
+                        @endforeach
+                    @else
+                        <div
+                            class="store-related-divider"
+                            id="crossBrandProductsDivider"
+                            hidden
+                        >
+                            <span>Want more like this</span>
+                        </div>
+                    @endif
                 </div>
 
                 <div
@@ -1290,13 +1654,13 @@
         </button>
 
         <a
-            href="{{ $storeUser ? route('profile.edit') : route('login') }}"
+            href="{{ $storeUser ? route('member.profile') : route('member.login') }}"
             class="store-bottom-dock-action"
             data-dock-key="account"
             data-dock-action
             aria-label="{{ $storeUser ? 'Open account settings' : 'Open login page' }}"
         >
-            <i class="fa-regular fa-user"></i>
+            @if($storeUser?->avatar_url)<img class="store-member-avatar" src="{{ $storeUser->avatar_url }}" alt="">@else<img class="store-member-avatar" src="{{ asset('images/member-camera-placeholder.png') }}" alt="">@endif
             <span>Account</span>
         </a>
     </nav>
@@ -1309,6 +1673,15 @@
         data-previous-url="{{ $productsPagination?->previousPageUrl() ? $productsPagination->previousPageUrl().'#products' : '' }}"
     >
         <i class="fa-solid fa-arrow-left"></i>
+    </button>
+
+    <button
+        type="button"
+        id="storeFloatingSearchButton"
+        class="store-floating-search-button"
+        aria-label="Open message options"
+    >
+        <i class="fa-regular fa-comment-dots"></i>
     </button>
 </div>
 
@@ -1350,6 +1723,10 @@
             'storeDockBackButton'
         );
 
+        const floatingSearchButton = document.getElementById(
+            'storeFloatingSearchButton'
+        );
+
         const dockCartButton = document.getElementById(
             'storeDockCartButton'
         );
@@ -1375,6 +1752,10 @@
 
         const storeSearchOverlay = document.getElementById(
             'storeSearchOverlay'
+        );
+
+        const storeSearchModeLabel = document.getElementById(
+            'storeSearchModeLabel'
         );
 
         const storeSearchClose = document.getElementById(
@@ -1441,6 +1822,50 @@
             'storeSearchEmpty'
         );
 
+        const storeSalesBannerButton = document.getElementById(
+            'storeSalesBannerButton'
+        );
+
+        const storeCouponsBannerButton = document.getElementById(
+            'storeCouponsBannerButton'
+        );
+
+        const storeCouponOverlay = document.getElementById(
+            'storeCouponOverlay'
+        );
+
+        const storeCouponClose = document.getElementById(
+            'storeCouponClose'
+        );
+
+        const storeCouponFeedback = document.getElementById(
+            'storeCouponFeedback'
+        );
+
+        const storeMessageOverlay = document.getElementById(
+            'storeMessageOverlay'
+        );
+
+        const storeMessageClose = document.getElementById(
+            'storeMessageClose'
+        );
+
+        const storeOfferBannerCards = Array.from(
+            document.querySelectorAll('.store-offer-banner-card')
+        );
+
+        const storeOfferBannerOverlay = document.getElementById(
+            'storeOfferBannerOverlay'
+        );
+
+        const storeOfferBannerClose = document.getElementById(
+            'storeOfferBannerClose'
+        );
+
+        const storeOfferBannerPreviewImage = document.getElementById(
+            'storeOfferBannerPreviewImage'
+        );
+
         const storeHeaderCartButton = document.getElementById(
             'storeHeaderCartButton'
         );
@@ -1451,6 +1876,10 @@
 
         const floatingCartCount = document.getElementById(
             'floatingCartCount'
+        );
+
+        const storeBannerActions = document.querySelector(
+            '.store-banner-actions'
         );
 
         const newArrivalViewport = document.querySelector(
@@ -1482,9 +1911,13 @@
         let newArrivalLastTime = 0;
         let newArrivalPaused = false;
         let newArrivalPointerDown = false;
+        let storeBannerAutoSlideTimer = null;
+        let storeBannerAutoSlidePaused = false;
+        let storeBannerAutoSlideIndex = 0;
         let activeSearchAudience = 'all';
         let activeSearchCategory = 'all';
         let activeSearchTag = 'all';
+        let activeSearchMode = 'search';
         const searchPriceLimit = Number(
             storeSearchMaxRange?.max || 0
         );
@@ -1516,7 +1949,7 @@
             window.clearTimeout(newArrivalResumeTimer);
         }
 
-        function resumeNewArrivalAutoMove(delay = 180) {
+        function resumeNewArrivalAutoMove(delay = 2000) {
             window.clearTimeout(newArrivalResumeTimer);
             newArrivalResumeTimer = window.setTimeout(
                 function () {
@@ -1553,6 +1986,58 @@
             );
         }
 
+        function getStoreBannerCards() {
+            return storeBannerActions
+                ? Array.from(
+                    storeBannerActions.querySelectorAll(
+                        '.store-banner-action-card'
+                    )
+                )
+                : [];
+        }
+
+        function runStoreBannerAutoSlide() {
+            if (!storeBannerActions || storeBannerAutoSlidePaused) {
+                return;
+            }
+
+            const bannerCards = getStoreBannerCards();
+
+            if (bannerCards.length <= 1) {
+                return;
+            }
+
+            storeBannerAutoSlideIndex =
+                (storeBannerAutoSlideIndex + 1)
+                % bannerCards.length;
+
+            storeBannerActions.scrollTo({
+                left: bannerCards[
+                    storeBannerAutoSlideIndex
+                ]?.offsetLeft || 0,
+                behavior: 'smooth',
+            });
+        }
+
+        function stopStoreBannerAutoSlide() {
+            window.clearInterval(storeBannerAutoSlideTimer);
+            storeBannerAutoSlideTimer = null;
+        }
+
+        function startStoreBannerAutoSlide() {
+            stopStoreBannerAutoSlide();
+
+            if (!storeBannerActions) {
+                return;
+            }
+
+            storeBannerAutoSlideTimer = window.setInterval(
+                runStoreBannerAutoSlide,
+                2600
+            );
+        }
+
+
         if (newArrivalViewport) {
             newArrivalViewport.scrollLeft = 0;
 
@@ -1580,7 +2065,7 @@
                     eventName,
                     function () {
                         newArrivalPointerDown = false;
-                        resumeNewArrivalAutoMove(180);
+                        resumeNewArrivalAutoMove(2000);
                     },
                     { passive: true }
                 );
@@ -1593,7 +2078,7 @@
                     eventName,
                     function () {
                         pauseNewArrivalAutoMove();
-                        resumeNewArrivalAutoMove(800);
+                        resumeNewArrivalAutoMove(2000);
                     },
                     { passive: true }
                 );
@@ -1612,10 +2097,135 @@
             );
         }
 
-        function openStoreSearch() {
+        if (storeBannerActions) {
+            storeBannerAutoSlideIndex = 0;
+            storeBannerActions.scrollLeft = 0;
+
+            [
+                'pointerdown',
+                'touchstart',
+                'mouseenter',
+            ].forEach(function (eventName) {
+                storeBannerActions.addEventListener(
+                    eventName,
+                    function () {
+                        storeBannerAutoSlidePaused = true;
+                    },
+                    { passive: true }
+                );
+            });
+
+            [
+                'pointerup',
+                'pointercancel',
+                'touchend',
+                'mouseleave',
+            ].forEach(function (eventName) {
+                storeBannerActions.addEventListener(
+                    eventName,
+                    function () {
+                        storeBannerAutoSlidePaused = false;
+                    },
+                    { passive: true }
+                );
+            });
+
+            storeBannerActions.addEventListener(
+                'wheel',
+                function () {
+                    storeBannerAutoSlidePaused = true;
+
+                    window.clearTimeout(
+                        storeBannerActions.resumeTimer
+                    );
+
+                    storeBannerActions.resumeTimer = window.setTimeout(
+                        function () {
+                            storeBannerAutoSlidePaused = false;
+                        },
+                        900
+                    );
+                },
+                { passive: true }
+            );
+
+            document.addEventListener(
+                'visibilitychange',
+                function () {
+                    storeBannerAutoSlidePaused = document.hidden;
+                }
+            );
+
+            startStoreBannerAutoSlide();
+        }
+
+        storeOfferBannerCards.forEach(function (card) {
+            card.addEventListener('click', function () {
+                openOfferBannerModal(
+                    card.dataset.offerBannerPreview || ''
+                );
+            });
+        });
+
+        function setStoreSearchModeLabel(label = 'Search') {
+            if (storeSearchModeLabel) {
+                storeSearchModeLabel.textContent = label;
+            }
+        }
+
+        function openStoreSearch(mode = 'search') {
+            activeSearchMode = mode === 'sale'
+                ? 'sale'
+                : 'search';
             storeSearchOverlay?.classList.add('open');
             storeSearchOverlay?.setAttribute('aria-hidden', 'false');
+            setStoreSearchModeLabel(
+                mode === 'sale'
+                    ? 'Sales'
+                    : 'Search'
+            );
+
+            if (storeSearchInput && mode === 'sale') {
+                storeSearchInput.value = '';
+            }
+
             syncSearchPriceUi();
+
+            if (mode === 'sale') {
+                activeSearchAudience = 'all';
+                activeSearchCategory = 'all';
+                activeSearchTag = 'sale';
+                if (storeSearchMinRange) {
+                    storeSearchMinRange.value = '0';
+                }
+                if (storeSearchMaxRange) {
+                    storeSearchMaxRange.value = String(searchPriceLimit);
+                }
+                if (storeSearchMinPrice) {
+                    storeSearchMinPrice.value = '0';
+                }
+                if (storeSearchMaxPrice) {
+                    storeSearchMaxPrice.value = String(searchPriceLimit);
+                }
+                syncSearchPriceUi();
+                setSearchChipActive(
+                    'button[data-search-audience]',
+                    'all',
+                    'searchAudience'
+                );
+                setSearchChipActive(
+                    'button[data-search-category]',
+                    'all',
+                    'searchCategory'
+                );
+                setSearchChipActive(
+                    'button[data-search-tag]',
+                    'sale',
+                    'searchTag'
+                );
+                applyStoreSearchFilters();
+            }
+
             setActiveDockAction('search');
 
             window.setTimeout(function () {
@@ -1630,6 +2240,8 @@
                 storeSearchInput.value = '';
             }
 
+            activeSearchMode = 'search';
+            setStoreSearchModeLabel('Search');
             resetStoreSearchFilters();
 
             if (storeSearchFilterPanel) {
@@ -1648,6 +2260,77 @@
                 !cartDrawerWrapper?.classList.contains('open')
             ) {
                 setActiveDockAction('home');
+            }
+        }
+
+        function openCouponModal() {
+            storeCouponOverlay?.classList.add('open');
+            storeCouponOverlay?.setAttribute('aria-hidden', 'false');
+            setCouponFeedback('', '');
+        }
+
+        function closeCouponModal() {
+            storeCouponOverlay?.classList.remove('open');
+            storeCouponOverlay?.setAttribute('aria-hidden', 'true');
+            setCouponFeedback('', '');
+        }
+
+        function openMessageModal() {
+            storeMessageOverlay?.classList.add('open');
+            storeMessageOverlay?.setAttribute(
+                'aria-hidden',
+                'false'
+            );
+        }
+
+        function closeMessageModal() {
+            storeMessageOverlay?.classList.remove('open');
+            storeMessageOverlay?.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+        }
+
+        function openOfferBannerModal(imageUrl = '') {
+            if (
+                !storeOfferBannerOverlay
+                || !storeOfferBannerPreviewImage
+                || !imageUrl
+            ) {
+                return;
+            }
+
+            storeOfferBannerPreviewImage.src = imageUrl;
+            storeOfferBannerOverlay.classList.add('open');
+            storeOfferBannerOverlay.setAttribute(
+                'aria-hidden',
+                'false'
+            );
+        }
+
+        function closeOfferBannerModal() {
+            storeOfferBannerOverlay?.classList.remove('open');
+            storeOfferBannerOverlay?.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+
+            if (storeOfferBannerPreviewImage) {
+                storeOfferBannerPreviewImage.src = '';
+            }
+        }
+
+        function setCouponFeedback(message = '', type = '') {
+            if (!storeCouponFeedback) {
+                return;
+            }
+
+            storeCouponFeedback.hidden = message.trim() === '';
+            storeCouponFeedback.textContent = message;
+            storeCouponFeedback.className = 'store-coupon-feedback';
+
+            if (type) {
+                storeCouponFeedback.classList.add(type);
             }
         }
 
@@ -1810,11 +2493,15 @@
                         || haystack.includes(query);
 
                     const categoryMatched =
+                        activeSearchMode === 'sale'
+                        ||
                         activeSearchCategory === 'all'
                         || itemCategory === activeSearchCategory
                         || itemCategoryKey === activeSearchCategory;
 
                     const audienceMatched =
+                        activeSearchMode === 'sale'
+                        ||
                         searchAudienceMatches(itemAudience);
 
                     const tagMatched =
@@ -1965,7 +2652,35 @@
 
         storeSearchButton?.addEventListener(
             'click',
-            openStoreSearch
+            function () {
+                openStoreSearch('search');
+            }
+        );
+
+        [
+            'click',
+            'touchend',
+        ].forEach(function (eventName) {
+            floatingSearchButton?.addEventListener(
+                eventName,
+                function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openMessageModal();
+                }
+            );
+        });
+
+        storeSalesBannerButton?.addEventListener(
+            'click',
+            function () {
+                openStoreSearch('sale');
+            }
+        );
+
+        storeCouponsBannerButton?.addEventListener(
+            'click',
+            openCouponModal
         );
 
         storeSearchClose?.addEventListener(
@@ -1973,11 +2688,66 @@
             closeStoreSearch
         );
 
+        storeCouponClose?.addEventListener(
+            'click',
+            closeCouponModal
+        );
+
+        storeMessageClose?.addEventListener(
+            'click',
+            closeMessageModal
+        );
+
+        storeOfferBannerClose?.addEventListener(
+            'click',
+            closeOfferBannerModal
+        );
+
         storeSearchOverlay?.addEventListener(
             'click',
             function (event) {
                 if (event.target === storeSearchOverlay) {
                     closeStoreSearch();
+                }
+            }
+        );
+
+        storeCouponOverlay?.addEventListener(
+            'click',
+            function (event) {
+                if (
+                    event.target === storeCouponOverlay
+                    || event.target?.hasAttribute('data-close-coupon-modal')
+                ) {
+                    closeCouponModal();
+                }
+            }
+        );
+
+        storeMessageOverlay?.addEventListener(
+            'click',
+            function (event) {
+                if (
+                    event.target === storeMessageOverlay
+                    || event.target?.hasAttribute(
+                        'data-close-message-modal'
+                    )
+                ) {
+                    closeMessageModal();
+                }
+            }
+        );
+
+        storeOfferBannerOverlay?.addEventListener(
+            'click',
+            function (event) {
+                if (
+                    event.target === storeOfferBannerOverlay
+                    || event.target?.hasAttribute(
+                        'data-close-offer-banner-modal'
+                    )
+                ) {
+                    closeOfferBannerModal();
                 }
             }
         );
@@ -2118,6 +2888,84 @@
                 resetStoreSearchFilters();
             }
         );
+
+        storeCouponOverlay
+            ?.querySelectorAll('[data-coupon-apply]')
+            .forEach(function (button) {
+                button.addEventListener('click', async function () {
+                    const code = String(
+                        button.dataset.couponApply || ''
+                    ).trim();
+
+                    if (!code) {
+                        return;
+                    }
+
+                    const originalText = button.textContent;
+                    button.disabled = true;
+                    button.textContent = 'Applying...';
+                    setCouponFeedback('', '');
+
+                    try {
+                        const response = await fetch(
+                            '{{ route('coupons.apply') }}',
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': document
+                                        .querySelector(
+                                            'meta[name="csrf-token"]'
+                                        )
+                                        ?.getAttribute('content') || '',
+                                },
+                                body: JSON.stringify({
+                                    code,
+                                }),
+                            }
+                        );
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(
+                                data?.message || 'Unable to apply coupon.'
+                            );
+                        }
+
+                        localStorage.setItem(
+                            'pending_coupon_code',
+                            code
+                        );
+
+                        setCouponFeedback(
+                            data?.message || 'Coupon applied successfully.',
+                            'success'
+                        );
+                    } catch (error) {
+                        if (error?.message === 'Your cart is empty.') {
+                            localStorage.setItem(
+                                'pending_coupon_code',
+                                code
+                            );
+
+                            setCouponFeedback(
+                                'Coupon saved. It will stay ready for your next checkout.',
+                                'success'
+                            );
+                        } else {
+                            setCouponFeedback(
+                                error?.message || 'Unable to apply coupon.',
+                                'error'
+                            );
+                        }
+                    } finally {
+                        button.disabled = false;
+                        button.textContent = originalText;
+                    }
+                });
+            });
 
         storeHeaderCartButton?.addEventListener(
             'click',
@@ -2304,6 +3152,9 @@
                 if (event.key === 'Escape') {
                     closeMobileNavigation();
                     closeStoreSearch();
+                    closeCouponModal();
+                    closeMessageModal();
+                    closeOfferBannerModal();
                 }
             }
         );
@@ -2379,6 +3230,11 @@
             );
 
             dockBackButton?.classList.toggle(
+                'show',
+                shouldFixCategories
+            );
+
+            floatingSearchButton?.classList.toggle(
                 'show',
                 shouldFixCategories
             );

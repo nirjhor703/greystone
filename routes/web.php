@@ -5,6 +5,11 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
+use App\Http\Controllers\Admin\MemberController as AdminMemberController;
+use App\Http\Controllers\Admin\InvestmentController as AdminInvestmentController;
+use App\Http\Controllers\Admin\PeopleProfileController as AdminPeopleProfileController;
+use App\Http\Controllers\Admin\ReferrerController as AdminReferrerController;
+use App\Http\Controllers\Admin\PurchaseMilestoneController as AdminPurchaseMilestoneController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EmployeeDashboardController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
@@ -19,6 +24,8 @@ use App\Http\Controllers\CouponController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\MemberAuthController;
+use App\Http\Controllers\SweetCoolPageController;
 use App\Http\Controllers\SweetCoolInquiryController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,16 +53,33 @@ Route::get('/dashboard', function () {
     ->middleware('auth')
     ->name('dashboard');
 
+Route::prefix('member')->name('member.')->group(function () {
+    Route::get('/register', [MemberAuthController::class, 'welcome'])->name('register');
+    Route::get('/register/form', [MemberAuthController::class, 'create'])->name('form');
+    Route::post('/register/details', [MemberAuthController::class, 'storeDetails'])->name('details');
+    Route::get('/register/division', [MemberAuthController::class, 'division'])->name('division');
+    Route::post('/register/finish', [MemberAuthController::class, 'finish'])->name('finish');
+    Route::get('/login', [MemberAuthController::class, 'login'])->name('login');
+    Route::post('/login', [MemberAuthController::class, 'authenticate'])->name('login.store');
+    Route::get('/auth/google', [MemberAuthController::class, 'googleRedirect'])->name('google.redirect');
+    Route::get('/auth/google/callback', [MemberAuthController::class, 'googleCallback'])->name('google.callback');
+    Route::get('/profile', [MemberAuthController::class, 'profile'])->name('profile');
+    Route::post('/profile/milestones/{milestone}/collect', [MemberAuthController::class, 'collectMilestone'])->name('milestone.collect');
+    Route::get('/profile/edit', [MemberAuthController::class, 'edit'])->name('edit');
+    Route::put('/profile/edit', [MemberAuthController::class, 'updateDetails'])->name('edit.details');
+    Route::put('/profile/photo', [MemberAuthController::class, 'updatePhoto'])->name('photo.update');
+    Route::post('/logout', [MemberAuthController::class, 'logout'])->name('logout');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Admin routes
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth')
+Route::middleware(['auth', 'admin.active'])
     ->prefix('admin')
     ->name('admin.')
-    ->middleware('admin.active')
     ->group(function () {
         Route::get(
             '/dashboard',
@@ -105,12 +129,52 @@ Route::middleware('auth')
             ->middleware('admin.permission:customers.view')
             ->name('customers.index');
 
+        Route::get('/customers/members', [AdminMemberController::class, 'index'])
+            ->middleware('admin.permission:customers.view')
+            ->name('members.index');
+
+        Route::get('/customers/people-profiles', [AdminPeopleProfileController::class, 'index'])->middleware('admin.permission:customers.view')->name('people-profiles.index');
+        Route::post('/customers/people-profiles', [AdminPeopleProfileController::class, 'store'])->middleware('admin.permission:customers.view')->name('people-profiles.store');
+        Route::put('/customers/people-profiles/{peopleProfile}', [AdminPeopleProfileController::class, 'update'])->middleware('admin.permission:customers.view')->name('people-profiles.update');
+        Route::delete('/customers/people-profiles/{peopleProfile}', [AdminPeopleProfileController::class, 'destroy'])->middleware('admin.permission:customers.view')->name('people-profiles.destroy');
+        Route::post('/customers/people-profile-types', [AdminPeopleProfileController::class, 'storeType'])->middleware('admin.permission:customers.view')->name('people-profile-types.store');
+        Route::put('/customers/people-profile-types/{peopleProfileType}', [AdminPeopleProfileController::class, 'updateType'])->middleware('admin.permission:customers.view')->name('people-profile-types.update');
+        Route::delete('/customers/people-profile-types/{peopleProfileType}', [AdminPeopleProfileController::class, 'destroyType'])->middleware('admin.permission:customers.view')->name('people-profile-types.destroy');
+
+        Route::get('/management/investments', [AdminInvestmentController::class, 'index'])->middleware('admin.permission:customers.view')->name('investments.index');
+        Route::post('/management/investors', [AdminInvestmentController::class, 'storeInvestor'])->middleware('admin.permission:customers.view')->name('investors.store');
+        Route::put('/management/investors/{investor}', [AdminInvestmentController::class, 'updateInvestor'])->middleware('admin.permission:customers.view')->name('investors.update');
+        Route::delete('/management/investors/{investor}', [AdminInvestmentController::class, 'destroyInvestor'])->middleware('admin.permission:customers.view')->name('investors.destroy');
+        Route::post('/management/investment-entries', [AdminInvestmentController::class, 'storeEntry'])->middleware('admin.permission:customers.view')->name('investment-entries.store');
+        Route::put('/management/investment-entries/{entry}', [AdminInvestmentController::class, 'updateEntry'])->middleware('admin.permission:customers.view')->name('investment-entries.update');
+        Route::delete('/management/investment-entries/{entry}', [AdminInvestmentController::class, 'destroyEntry'])->middleware('admin.permission:customers.view')->name('investment-entries.destroy');
+        Route::post('/management/investment-settlements', [AdminInvestmentController::class, 'storeSettlement'])->middleware('admin.permission:customers.view')->name('investment-settlements.store');
+
+        Route::get('/customers/referrers', [AdminReferrerController::class, 'index'])->middleware('admin.permission:customers.view')->name('referrers.index');
+        Route::post('/customers/referrers', [AdminReferrerController::class, 'store'])->middleware('admin.permission:customers.view')->name('referrers.store');
+        Route::put('/customers/referrers/settings', [AdminReferrerController::class, 'settings'])->middleware('admin.permission:customers.view')->name('referrers.settings');
+        Route::get('/customers/referrers/check-code', [AdminReferrerController::class, 'checkCode'])->middleware('admin.permission:customers.view')->name('referrers.check-code');
+        Route::get('/customers/referrers/{referrer}', [AdminReferrerController::class, 'show'])->middleware('admin.permission:customers.view')->name('referrers.show');
+        Route::put('/customers/referrers/{referrer}', [AdminReferrerController::class, 'update'])->middleware('admin.permission:customers.view')->name('referrers.update');
+        Route::delete('/customers/referrers/{referrer}', [AdminReferrerController::class, 'destroy'])->middleware('admin.permission:customers.view')->name('referrers.destroy');
+        Route::get('/customers/member-milestones', [AdminPurchaseMilestoneController::class, 'index'])->middleware('admin.permission:customers.view')->name('milestones.index');
+        Route::post('/customers/member-milestones', [AdminPurchaseMilestoneController::class, 'store'])->middleware('admin.permission:customers.view')->name('milestones.store');
+        Route::put('/customers/member-milestones/{milestone}', [AdminPurchaseMilestoneController::class, 'update'])->middleware('admin.permission:customers.view')->name('milestones.update');
+        Route::delete('/customers/member-milestones/{milestone}', [AdminPurchaseMilestoneController::class, 'destroy'])->middleware('admin.permission:customers.view')->name('milestones.destroy');
+
         Route::get(
             '/sweet-cool',
             [AdminSweetCoolInquiryController::class, 'index']
         )
             ->middleware('admin.permission:sweet_cool.view')
             ->name('sweet-cool.index');
+
+        Route::post(
+            '/sweet-cool/content',
+            [AdminSweetCoolInquiryController::class, 'updateContent']
+        )
+            ->middleware('admin.permission:sweet_cool.view')
+            ->name('sweet-cool.content.update');
 
         Route::get(
             '/reports',
@@ -548,6 +612,21 @@ Route::post(
     '/sweet-cool',
     [SweetCoolInquiryController::class, 'store']
 )->name('sweet-cool.store');
+
+Route::get(
+    '/sweet-cool',
+    [SweetCoolPageController::class, 'show']
+)->name('sweet-cool.show');
+
+Route::post(
+    '/sweet-cool/visit-booking',
+    [SweetCoolPageController::class, 'storeBooking']
+)->name('sweet-cool.bookings.store');
+
+Route::get(
+    '/sweet-cool/visit-booking/availability',
+    [SweetCoolPageController::class, 'checkAvailability']
+)->name('sweet-cool.bookings.availability');
 
 /*
 |--------------------------------------------------------------------------

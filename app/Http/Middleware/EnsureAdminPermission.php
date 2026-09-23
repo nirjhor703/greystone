@@ -15,6 +15,17 @@ class EnsureAdminPermission
     ): Response {
         $user = $request->user();
 
+        if (! $user) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthenticated.',
+                ], 401);
+            }
+
+            return redirect()->guest(route('login'));
+        }
+
         $permissions = explode('|', $permission);
 
         $allowed = $user && collect($permissions)->contains(

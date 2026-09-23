@@ -35,6 +35,10 @@
         href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800,900&display=swap"
         rel="stylesheet"
     >
+    <link
+        href="https://fonts.bunny.net/css?family=anek-bangla:400,500,600,700,800&display=swap"
+        rel="stylesheet"
+    >
 
     @vite([
         'resources/css/app.css',
@@ -474,7 +478,7 @@
 
 <body>
 @php
-    $storeUser = auth()->user();
+    $storeUser = App\Models\Member::find(session('member_id'));
     $brandSlug = $brand->slug;
     $isPinkTouch = $brandSlug === 'pink-touch';
     $normalizeVariantHex = static function ($value): ?string {
@@ -601,6 +605,23 @@
 @endphp
 
 <div class="storefront storefront-{{ $brandSlug }} product-detail-storefront">
+    <div
+        class="store-language-modal"
+        data-language-modal
+        aria-hidden="true"
+        data-no-translate
+    >
+        <div class="store-language-modal-card" role="dialog" aria-modal="true" aria-labelledby="storeLanguageTitle">
+            <span class="store-language-modal-eyebrow">Choose language</span>
+            <h2 id="storeLanguageTitle">আপনার ভাষা বেছে নিন</h2>
+            <p>English বা বাংলা—যেটা বেছে নেবেন, পুরো storefront সেটাই থাকবে।</p>
+            <div class="store-language-modal-actions">
+                <button type="button" data-language-toggle="en">English</button>
+                <button type="button" data-language-toggle="bn">বাংলা</button>
+            </div>
+        </div>
+    </div>
+
     <header class="store-header {{ $isPinkTouch ? 'store-header-light' : 'store-header-dark' }}">
         <div class="store-header-inner">
             <div class="store-header-actions store-header-actions-left">
@@ -688,16 +709,16 @@
                         @if ($storeUser)
                             <div class="store-nav-auth-actions store-nav-auth-actions-single">
                                 <a
-                                    href="{{ route('profile.edit') }}"
+                                    href="{{ route('member.profile') }}"
                                     class="store-nav-auth-button is-primary"
                                 >
-                                    <i class="fa-regular fa-user"></i>
+                                    @if($storeUser->avatar_url)<img class="store-member-avatar" src="{{ $storeUser->avatar_url }}" alt="">@else<img class="store-member-avatar" src="{{ asset('images/member-camera-placeholder.png') }}" alt="">@endif
                                     Account
                                 </a>
 
                                 <form
                                     method="POST"
-                                    action="{{ route('logout') }}"
+                                    action="{{ route('member.logout') }}"
                                 >
                                     @csrf
 
@@ -713,7 +734,7 @@
                         @else
                             <div class="store-nav-auth-actions">
                                 <a
-                                    href="{{ route('login') }}"
+                                    href="{{ route('member.login') }}"
                                     class="store-nav-auth-button is-primary"
                                 >
                                     <i class="fa-solid fa-right-to-bracket"></i>
@@ -721,7 +742,7 @@
                                 </a>
 
                                 <a
-                                    href="{{ route('register') }}"
+                                    href="{{ route('member.register') }}"
                                     class="store-nav-auth-button"
                                 >
                                     <i class="fa-solid fa-user-plus"></i>
@@ -732,6 +753,11 @@
                     </div>
 
                     <div class="store-nav-main">
+                        <div class="store-language-switch" aria-label="Language selector">
+                            <button type="button" data-language-toggle="en">EN</button>
+                            <button type="button" data-language-toggle="bn">বাংলা</button>
+                        </div>
+
                         <a
                             href="{{ route('brand.show', $brand->slug) }}"
                             class="store-nav-link"
@@ -1050,7 +1076,7 @@
                         $searchTags = collect([
                             $searchProduct->is_featured ? 'featured' : null,
                             $searchProduct->is_new_arrival ? 'new' : null,
-                            $searchProduct->isOnSale() ? 'sale' : null,
+                            $searchProduct->is_sales_badge ? 'sale' : null,
                             $searchAudience,
                             $searchAudience === 'both' ? 'men women' : null,
                         ])->filter()->implode(' ');
@@ -1358,14 +1384,6 @@
                                 }}
                             </div>
                         </div>
-
-                        @if ($product->short_description)
-                            <p class="product-detail-summary">
-                                {{
-                                    $product->short_description
-                                }}
-                            </p>
-                        @endif
 
                         <script
                             type="application/json"
@@ -1730,13 +1748,13 @@
         </button>
 
         <a
-            href="{{ $storeUser ? route('profile.edit') : route('login') }}"
+            href="{{ $storeUser ? route('member.profile') : route('member.login') }}"
             class="store-bottom-dock-action"
             data-dock-key="account"
             data-dock-action
             aria-label="{{ $storeUser ? 'Open account settings' : 'Open login page' }}"
         >
-            <i class="fa-regular fa-user"></i>
+            @if($storeUser?->avatar_url)<img class="store-member-avatar" src="{{ $storeUser->avatar_url }}" alt="">@else<img class="store-member-avatar" src="{{ asset('images/member-camera-placeholder.png') }}" alt="">@endif
             <span>Account</span>
         </a>
 

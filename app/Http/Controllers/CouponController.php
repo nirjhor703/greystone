@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Coupon;
 use App\Models\Brand;
 use App\Models\Order;
+use App\Models\MemberCoupon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -12,6 +13,14 @@ class CouponController extends Controller
 {
     public function apply(Request $request): JsonResponse
     {
+        if (!$request->session()->has('member_id')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Become a member to unlock your Coupon Wallet and use coupons.',
+                'register_url' => route('member.register'),
+            ], 403);
+        }
+
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:60'],
             'phone' => ['nullable', 'string', 'max:20'],
@@ -40,6 +49,16 @@ class CouponController extends Controller
                 'status' => 'error',
                 'message' => 'Coupon code was not found.',
             ], 422);
+        }
+
+        $walletRestricted = MemberCoupon::where('coupon_id', $coupon->id)->exists();
+        $walletCoupon = MemberCoupon::where('coupon_id', $coupon->id)
+            ->where('member_id', $request->session()->get('member_id'))
+            ->where('status', 'available')
+            ->exists();
+        if ($walletRestricted && !$walletCoupon) {
+            $request->session()->forget('checkout_coupon');
+            return response()->json(['status' => 'error', 'message' => 'This gift coupon is not available in your wallet.'], 422);
         }
 
         $unavailableMessage = $this->unavailableMessage(
@@ -122,6 +141,10 @@ class CouponController extends Controller
 
     public function available(Request $request): JsonResponse
     {
+        if (!$request->session()->has('member_id')) {
+            return response()->json(['status' => 'success', 'coupons' => [], 'items_total' => 0]);
+        }
+
         $cartSummary = $this->cartSummary($request);
         $brandId = $cartSummary['brand_id'];
         $itemsTotal = $cartSummary['items_total'];
@@ -146,6 +169,15 @@ class CouponController extends Controller
             )
             ->latest('id')
             ->get()
+            ->filter(function (Coupon $coupon) use ($request): bool {
+                $walletRestricted = MemberCoupon::where('coupon_id', $coupon->id)->exists();
+                $walletCoupon = MemberCoupon::where('coupon_id', $coupon->id)
+                    ->where('member_id', $request->session()->get('member_id'))
+                    ->where('status', 'available')
+                    ->exists();
+
+                return !$walletRestricted || $walletCoupon;
+            })
             ->filter(
                 fn (Coupon $coupon): bool =>
                     $coupon->isUsableNow()
@@ -248,6 +280,24 @@ class CouponController extends Controller
 
     public function popup(Request $request): JsonResponse
     {
+        if (!$request->session()->has('member_id')) {
+            return response()->json([
+                'status' => 'success',
+                'coupon' => [
+                    'id' => 'membership-welcome',
+                    'code' => '',
+                    'badge' => 'GREY STONE MEMBERSHIP',
+                    'title' => 'Become a Member. Get Your Coupon Wallet.',
+                    'description' => 'Your first purchase starts the journey. Then a 10% coupon will be added to your wallet for purchase #2.',
+                    'button_text' => 'Become a Member',
+                    'apply_loading_text' => 'Opening signup...',
+                    'requires_membership' => true,
+                    'register_url' => route('member.register'),
+                    'scroll_pixels' => 120,
+                ],
+            ]);
+        }
+
         $brandId = $request->filled('brand_id')
             ? (int) $request->input('brand_id')
             : null;

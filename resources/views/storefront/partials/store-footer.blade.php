@@ -35,7 +35,7 @@
 
                 <div class="store-footer-column">
                     <span>Business</span>
-                    <a href="#sweet-cool">Factory Sweet Cool</a>
+                    <a href="{{ route('sweet-cool.show') }}">Factory Sweet Cool</a>
                     <a href="{{ route('brand.show', $brand->slug) }}#categories">Browse Categories</a>
                     <a href="{{ route('brand.show', $brand->slug) }}#products">All Products</a>
                 </div>

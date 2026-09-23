@@ -82,7 +82,7 @@
                         <th>ID</th>
                         <th>Category</th>
                         <th>Brand</th>
-                        <th>Prefix</th>
+                        <th>Prefix @include('admin.partials.info-help', ['key' => 'category_table_prefix', 'text' => 'Product code generate korte short category prefix use hoy.'])</th>
                         <th>Status</th>
                         <th>Description</th>
                         <th class="brand-actions-heading">Actions</th>

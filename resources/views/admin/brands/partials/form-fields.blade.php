@@ -23,7 +23,7 @@
 
             <div class="brand-form-field">
                 <label for="{{ $formPrefix }}_slug">
-                    Brand Slug <span>*</span>
+                    Brand Slug <span>*</span> @include('admin.partials.info-help', ['key' => 'brand_form_slug', 'text' => 'Unique URL name. Lowercase letters, numbers and hyphen use korun.'])
                 </label>
 
                 <input
@@ -102,7 +102,7 @@
 
             <div class="brand-form-field brand-full-field">
                 <label for="{{ $formPrefix }}_offer_banners">
-                    Offer Banners
+                    Offer Banners @include('admin.partials.info-help', ['key' => 'brand_form_offer_banners', 'text' => 'Storefront carousel/banner area-r promotional images.'])
                 </label>
 
                 <input
@@ -122,6 +122,78 @@
                 <div
                     class="brand-current-image brand-current-banner-list"
                     id="{{ $formPrefix }}_offer_banners_preview"
+                ></div>
+            </div>
+
+            <div class="brand-form-field">
+                <label for="{{ $formPrefix }}_signup_banner">
+                    Sign Up Banner @include('admin.partials.info-help', ['key' => 'brand_form_signup_banner', 'text' => 'Customer sign-up/register area-r banner image.'])
+                </label>
+
+                <input
+                    id="{{ $formPrefix }}_signup_banner"
+                    type="file"
+                    name="signup_banner"
+                    accept=".jpg,.jpeg,.png,.webp"
+                >
+
+                <span class="brand-field-help">
+                    Guest users will see this first. Clicking it opens the sign up page.
+                </span>
+
+                <small class="brand-field-error signup_banner_error"></small>
+
+                <div
+                    class="brand-current-image"
+                    id="{{ $formPrefix }}_signup_banner_preview"
+                ></div>
+            </div>
+
+            <div class="brand-form-field">
+                <label for="{{ $formPrefix }}_sales_banner">
+                    Sales Banner
+                </label>
+
+                <input
+                    id="{{ $formPrefix }}_sales_banner"
+                    type="file"
+                    name="sales_banner"
+                    accept=".jpg,.jpeg,.png,.webp"
+                >
+
+                <span class="brand-field-help">
+                    Clicking it opens sale products only.
+                </span>
+
+                <small class="brand-field-error sales_banner_error"></small>
+
+                <div
+                    class="brand-current-image"
+                    id="{{ $formPrefix }}_sales_banner_preview"
+                ></div>
+            </div>
+
+            <div class="brand-form-field">
+                <label for="{{ $formPrefix }}_coupons_banner">
+                    Active Coupons Banner
+                </label>
+
+                <input
+                    id="{{ $formPrefix }}_coupons_banner"
+                    type="file"
+                    name="coupons_banner"
+                    accept=".jpg,.jpeg,.png,.webp"
+                >
+
+                <span class="brand-field-help">
+                    Clicking it opens the active coupon modal.
+                </span>
+
+                <small class="brand-field-error coupons_banner_error"></small>
+
+                <div
+                    class="brand-current-image"
+                    id="{{ $formPrefix }}_coupons_banner_preview"
                 ></div>
             </div>
 

@@ -4,6 +4,14 @@
 
 @import './storefront.css';
 
+@import './members.css';
+
+@import './members-register.css';
+
+@import './members-account.css';
+
+@import './members-division.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
