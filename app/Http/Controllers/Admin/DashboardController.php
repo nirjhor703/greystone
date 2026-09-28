@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AdminNotification;
 use App\Models\Brand;
+use App\Models\InvestmentEntry;
+use App\Models\InvestmentInvestor;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\Request;
@@ -335,6 +337,80 @@ class DashboardController extends Controller
         $highlightOrders =
             (int)
             $ordersTotals->max();
+        $businessCosts = (float) InvestmentEntry::query()
+            ->where('entry_type', 'business_cost')
+            ->when(
+                $brandId,
+                fn ($query) =>
+                    $query->where(
+                        'brand_id',
+                        $brandId
+                    )
+            )
+            ->whereBetween('entry_date', [$start->toDateString(), $end->toDateString()])
+            ->sum('amount');
+        $taxPaid = (float) InvestmentEntry::query()
+            ->where('entry_type', 'tax_paid')
+            ->whereBetween('entry_date', [$start->toDateString(), $end->toDateString()])
+            ->sum('amount');
+        $investorPayout = (float) InvestmentEntry::query()
+            ->where('entry_type', 'profit_payout')
+            ->whereBetween('entry_date', [$start->toDateString(), $end->toDateString()])
+            ->sum('amount');
+        $vatCollected = (float) $validOrders->sum('vat_amount');
+        $extraCosts = $taxPaid + $investorPayout;
+        $recentBusinessCosts = InvestmentEntry::query()
+            ->with('brand')
+            ->where('entry_type', 'business_cost')
+            ->when(
+                $brandId,
+                fn ($query) =>
+                    $query->where(
+                        'brand_id',
+                        $brandId
+                    )
+            )
+            ->whereBetween('entry_date', [$start->toDateString(), $end->toDateString()])
+            ->latest('entry_date')
+            ->latest('id')
+            ->limit(10)
+            ->get();
+        $onlineRevenue = (float) $validOrders
+            ->filter(fn (Order $order): bool =>
+                ($order->order_channel ?: Order::CHANNEL_ONLINE) === Order::CHANNEL_ONLINE
+            )
+            ->sum('grand_total');
+        $offlineRevenue = (float) $validOrders
+            ->filter(fn (Order $order): bool =>
+                $order->order_channel === Order::CHANNEL_OFFLINE
+            )
+            ->sum('grand_total');
+        $onlineCosts = (float) InvestmentEntry::query()
+            ->where('entry_type', 'business_cost')
+            ->where('investment_channel', Order::CHANNEL_ONLINE)
+            ->when(
+                $brandId,
+                fn ($query) =>
+                    $query->where(
+                        'brand_id',
+                        $brandId
+                    )
+            )
+            ->whereBetween('entry_date', [$start->toDateString(), $end->toDateString()])
+            ->sum('amount');
+        $offlineCosts = (float) InvestmentEntry::query()
+            ->where('entry_type', 'business_cost')
+            ->where('investment_channel', Order::CHANNEL_OFFLINE)
+            ->when(
+                $brandId,
+                fn ($query) =>
+                    $query->where(
+                        'brand_id',
+                        $brandId
+                    )
+            )
+            ->whereBetween('entry_date', [$start->toDateString(), $end->toDateString()])
+            ->sum('amount');
 
         $dashboard = [
             'today_orders' =>
@@ -379,6 +455,42 @@ class DashboardController extends Controller
 
             'range_revenue' =>
                 $rangeRevenue,
+
+            'business_costs' =>
+                $businessCosts,
+
+            'vat_collected' =>
+                $vatCollected,
+
+            'net_profit' =>
+                $rangeRevenue - $businessCosts - $extraCosts,
+
+            'extra_costs' =>
+                $extraCosts,
+
+            'tax_paid' =>
+                $taxPaid,
+
+            'investor_payout' =>
+                $investorPayout,
+
+            'investors_count' =>
+                InvestmentInvestor::query()->count(),
+
+            'recent_business_costs' =>
+                $recentBusinessCosts,
+
+            'online_revenue' =>
+                $onlineRevenue,
+
+            'online_costs' =>
+                $onlineCosts,
+
+            'offline_revenue' =>
+                $offlineRevenue,
+
+            'offline_costs' =>
+                $offlineCosts,
 
             'range_orders' =>
                 $rangeOrders,
@@ -507,31 +619,31 @@ class DashboardController extends Controller
         switch ($period) {
             case 'weekly':
                 $start = now()
-                    ->subWeeks(11)
-                    ->startOfWeek();
+                    ->subDays(6)
+                    ->startOfDay();
 
                 $end = now()
-                    ->endOfWeek();
+                    ->endOfDay();
 
                 break;
 
             case 'monthly':
                 $start = now()
-                    ->subMonths(11)
-                    ->startOfMonth();
+                    ->subDays(29)
+                    ->startOfDay();
 
                 $end = now()
-                    ->endOfMonth();
+                    ->endOfDay();
 
                 break;
 
             case 'yearly':
                 $start = now()
-                    ->subYears(4)
-                    ->startOfYear();
+                    ->subDays(364)
+                    ->startOfDay();
 
                 $end = now()
-                    ->endOfYear();
+                    ->endOfDay();
 
                 break;
 
@@ -543,7 +655,6 @@ class DashboardController extends Controller
                         $request->start_date
                     )->startOfDay()
                     : now()
-                        ->subDays(13)
                         ->startOfDay();
 
                 $end = $request->filled(
@@ -570,7 +681,6 @@ class DashboardController extends Controller
             case 'daily':
             default:
                 $start = now()
-                    ->subDays(13)
                     ->startOfDay();
 
                 $end = now()
@@ -625,6 +735,10 @@ class DashboardController extends Controller
             }
         }
 
+        if (in_array($period, ['weekly', 'monthly'], true)) {
+            $period = 'daily';
+        }
+
         $periods = collect();
 
         $cursor = $start->copy();
@@ -634,6 +748,42 @@ class DashboardController extends Controller
                 $end
             )
         ) {
+            if ($period === 'yearly') {
+                $bucketStart = $cursor
+                    ->copy()
+                    ->startOfMonth();
+
+                $bucketEnd = $cursor
+                    ->copy()
+                    ->endOfMonth();
+
+                $periods->push([
+                    'key' =>
+                        $bucketStart
+                            ->format(
+                                'Y-m'
+                            ),
+
+                    'label' =>
+                        $bucketStart
+                            ->format(
+                                'M Y'
+                            ),
+
+                    'start' =>
+                        $bucketStart,
+
+                    'end' =>
+                        $bucketEnd,
+                ]);
+
+                $cursor = $bucketStart
+                    ->copy()
+                    ->addMonth();
+
+                continue;
+            }
+
             if ($period === 'weekly') {
                 $bucketStart = $cursor
                     ->copy()
@@ -663,7 +813,9 @@ class DashboardController extends Controller
                         $bucketEnd,
                 ]);
 
-                $cursor->addWeek();
+                $cursor = $bucketStart
+                    ->copy()
+                    ->addWeek();
 
                 continue;
             }
@@ -697,41 +849,9 @@ class DashboardController extends Controller
                         $bucketEnd,
                 ]);
 
-                $cursor->addMonth();
-
-                continue;
-            }
-
-            if ($period === 'yearly') {
-                $bucketStart = $cursor
+                $cursor = $bucketStart
                     ->copy()
-                    ->startOfYear();
-
-                $bucketEnd = $cursor
-                    ->copy()
-                    ->endOfYear();
-
-                $periods->push([
-                    'key' =>
-                        $bucketStart
-                            ->format(
-                                'Y'
-                            ),
-
-                    'label' =>
-                        $bucketStart
-                            ->format(
-                                'Y'
-                            ),
-
-                    'start' =>
-                        $bucketStart,
-
-                    'end' =>
-                        $bucketEnd,
-                ]);
-
-                $cursor->addYear();
+                    ->addMonth();
 
                 continue;
             }
@@ -907,16 +1027,16 @@ class DashboardController extends Controller
     ): string {
         return match ($period) {
             'daily' =>
-                'Last 14 days',
+                'Today',
 
             'weekly' =>
-                'Last 12 weeks',
+                'Last 7 days',
 
             'monthly' =>
-                'Last 12 months',
+                'Last 30 days',
 
             'yearly' =>
-                'Last 5 years',
+                'Last 365 days',
 
             'custom' =>
                 $start->format('M d, Y')

@@ -295,7 +295,7 @@
                             === 'daily'
                         )
                     >
-                        Daily — Last 14 days
+                        Daily — Today
                     </option>
 
                     <option
@@ -305,7 +305,7 @@
                             === 'weekly'
                         )
                     >
-                        Weekly — Last 12 weeks
+                        Weekly — Last 7 days
                     </option>
 
                     <option
@@ -315,7 +315,7 @@
                             === 'monthly'
                         )
                     >
-                        Monthly — Last 12 months
+                        Monthly — Last 30 days
                     </option>
 
                     <option
@@ -325,7 +325,7 @@
                             === 'yearly'
                         )
                     >
-                        Yearly — Last 5 years
+                        Yearly — Last 365 days
                     </option>
 
                     <option
@@ -392,6 +392,191 @@
 
             <small>
                 {{ $periodLabel }}
+            </small>
+        </article>
+
+        <article class="dashboard-costs-card" tabindex="0">
+            <div class="dashboard-kpi-icon">
+                <i class="fa-solid fa-receipt"></i>
+            </div>
+
+            <span>Business Costs</span>
+
+            <strong>
+                ৳{{ number_format($dashboard['business_costs'], 2) }}
+            </strong>
+
+            <small>
+                Ledger cost in {{ $periodLabel }}
+            </small>
+
+            <button
+                type="button"
+                class="dashboard-kpi-more"
+                aria-label="Show recent costs"
+            >
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+
+            <div class="dashboard-sold-items-popover dashboard-costs-popover">
+                <div class="dashboard-sold-items-head">
+                    <strong>Recent 10 Costs</strong>
+                    <span>{{ $periodLabel }}</span>
+                </div>
+
+                <div class="dashboard-sold-items-list">
+                    @forelse (($dashboard['recent_business_costs'] ?? collect()) as $index => $cost)
+                        <div class="{{ $index === 0 ? 'top' : '' }}">
+                            <span>{{ $index + 1 }}</span>
+                            <div>
+                                <strong>{{ $cost->purpose ?: ($cost->brand?->name ?: 'Business Cost') }}</strong>
+                                <small>{{ $cost->entry_date?->format('d M Y') }} · {{ $cost->brand?->name ?: 'General' }} · {{ $cost->channelLabel() }}</small>
+                            </div>
+                            <b>৳{{ number_format((float) $cost->amount, 0) }}<small>cost</small></b>
+                        </div>
+                    @empty
+                        <p>No cost entry found in this period.</p>
+                    @endforelse
+                </div>
+            </div>
+        </article>
+
+        <article class="dashboard-extra-costs-card" tabindex="0">
+            <div class="dashboard-kpi-icon">
+                <i class="fa-solid fa-scissors"></i>
+            </div>
+
+            <span>Extra Costs</span>
+
+            <strong>
+                ৳{{ number_format($dashboard['extra_costs'], 2) }}
+            </strong>
+
+            <small>
+                Tax paid ৳{{ number_format($dashboard['tax_paid'], 2) }} · Investor payout ৳{{ number_format($dashboard['investor_payout'], 2) }}
+            </small>
+
+            <button
+                type="button"
+                class="dashboard-kpi-more"
+                aria-label="Show extra cost details"
+            >
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+
+            <div class="dashboard-sold-items-popover dashboard-extra-costs-popover">
+                <div class="dashboard-sold-items-head">
+                    <strong>Extra Cost Breakdown</strong>
+                    <span>{{ $periodLabel }}</span>
+                </div>
+
+                <div class="dashboard-sold-items-list">
+                    <div class="top">
+                        <span>1</span>
+                        <div>
+                            <strong>Tax Paid</strong>
+                            <small>Tax paid from ledger in this period</small>
+                        </div>
+                        <b>৳{{ number_format($dashboard['tax_paid'], 0) }}<small>cost</small></b>
+                    </div>
+
+                    <div>
+                        <span>2</span>
+                        <div>
+                            <strong>Investor Payout</strong>
+                            <small>Profit payout paid to investors in this period</small>
+                        </div>
+                        <b>৳{{ number_format($dashboard['investor_payout'], 0) }}<small>cost</small></b>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <article class="dashboard-profit-card">
+            <div class="dashboard-kpi-icon">
+                <i class="fa-solid fa-equals"></i>
+            </div>
+
+            <span>Net Profit</span>
+
+            <strong>
+                ৳{{ number_format($dashboard['net_profit'], 2) }}
+            </strong>
+
+            <small>
+                ৳{{ number_format($dashboard['range_revenue'], 2) }} - ৳{{ number_format($dashboard['business_costs'], 2) }} - ৳{{ number_format($dashboard['extra_costs'], 2) }}
+            </small>
+        </article>
+
+        <article class="dashboard-channel-card">
+            <div class="dashboard-kpi-icon">
+                <i class="fa-solid fa-globe"></i>
+            </div>
+
+            <span>Online</span>
+
+            <div class="dashboard-channel-split">
+                <div>
+                    <small>Revenue</small>
+                    <strong>৳{{ number_format($dashboard['online_revenue'], 2) }}</strong>
+                </div>
+
+                <div>
+                    <small>Cost</small>
+                    <strong>৳{{ number_format($dashboard['online_costs'], 2) }}</strong>
+                </div>
+            </div>
+        </article>
+
+        <article class="dashboard-channel-card">
+            <div class="dashboard-kpi-icon">
+                <i class="fa-solid fa-store"></i>
+            </div>
+
+            <span>Offline</span>
+
+            <div class="dashboard-channel-split">
+                <div>
+                    <small>Revenue</small>
+                    <strong>৳{{ number_format($dashboard['offline_revenue'], 2) }}</strong>
+                </div>
+
+                <div>
+                    <small>Cost</small>
+                    <strong>৳{{ number_format($dashboard['offline_costs'], 2) }}</strong>
+                </div>
+            </div>
+        </article>
+
+        <article>
+            <div class="dashboard-kpi-icon">
+                <i class="fa-solid fa-percent"></i>
+            </div>
+
+            <span>VAT Collected</span>
+
+            <strong>
+                ৳{{ number_format($dashboard['vat_collected'], 2) }}
+            </strong>
+
+            <small>
+                From VAT-enabled orders
+            </small>
+        </article>
+
+        <article>
+            <div class="dashboard-kpi-icon">
+                <i class="fa-solid fa-hand-holding-dollar"></i>
+            </div>
+
+            <span>Investors</span>
+
+            <strong>
+                {{ number_format($dashboard['investors_count']) }}
+            </strong>
+
+            <small>
+                Total investor profiles
             </small>
         </article>
 
@@ -1391,30 +1576,42 @@
                     document.querySelector(
                         '.dashboard-items-card'
                     );
+                const costsCard =
+                    document.querySelector(
+                        '.dashboard-costs-card'
+                    );
+                const extraCostsCard =
+                    document.querySelector(
+                        '.dashboard-extra-costs-card'
+                    );
 
-                soldItemsCard?.addEventListener(
-                    'click',
-                    function (event) {
-                        if (
-                            event.target.closest(
-                                '.dashboard-sold-items-popover'
-                            )
-                        ) {
-                            return;
+                [soldItemsCard, costsCard, extraCostsCard].forEach((card) => {
+                    card?.addEventListener(
+                        'click',
+                        function (event) {
+                            if (
+                                event.target.closest(
+                                    '.dashboard-sold-items-popover'
+                                )
+                            ) {
+                                return;
+                            }
+
+                            event.stopPropagation();
+                            card.classList.toggle('open');
                         }
-
-                        event.stopPropagation();
-                        soldItemsCard.classList.toggle('open');
-                    }
-                );
+                    );
+                });
 
                 document.addEventListener('click', function (event) {
-                    if (
-                        soldItemsCard
-                        && ! soldItemsCard.contains(event.target)
-                    ) {
-                        soldItemsCard.classList.remove('open');
-                    }
+                    [soldItemsCard, costsCard, extraCostsCard].forEach((card) => {
+                        if (
+                            card
+                            && ! card.contains(event.target)
+                        ) {
+                            card.classList.remove('open');
+                        }
+                    });
                 });
             }
         );

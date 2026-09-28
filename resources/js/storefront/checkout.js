@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const checkoutDeliveryCharge = document.getElementById('checkoutDeliveryCharge');
     const checkoutDiscountRow = document.getElementById('checkoutDiscountRow');
     const checkoutDiscountAmount = document.getElementById('checkoutDiscountAmount');
+    const checkoutVatRow = document.getElementById('checkoutVatRow');
+    const checkoutVatAmount = document.getElementById('checkoutVatAmount');
+    const checkoutVatPercent = document.getElementById('checkoutVatPercent');
     const checkoutGrandTotal = document.getElementById('checkoutGrandTotal');
     const checkoutGeneralError = document.getElementById('checkoutGeneralError');
     const checkoutCouponCode = document.getElementById('checkoutCouponCode');
@@ -34,6 +37,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const confirmDeliveryCharge = document.getElementById('confirmDeliveryCharge');
     const confirmDiscountRow = document.getElementById('confirmDiscountRow');
     const confirmDiscountAmount = document.getElementById('confirmDiscountAmount');
+    const confirmVatRow = document.getElementById('confirmVatRow');
+    const confirmVatAmount = document.getElementById('confirmVatAmount');
+    const confirmVatPercent = document.getElementById('confirmVatPercent');
     const confirmGrandTotal = document.getElementById('confirmGrandTotal');
     const confirmGeneralError = document.getElementById('confirmGeneralError');
     const confirmFinalOrderBtn = document.getElementById('confirmFinalOrderBtn');
@@ -872,8 +878,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const discountAmount = Number(
             appliedCoupon?.discount_amount || 0
         );
+        const vatEnabled = checkoutVatRow?.dataset.vatEnabled === '1';
+        const vatPercent = Number(checkoutVatRow?.dataset.vatPercent || 0);
+        const taxableAmount = Math.max(itemsTotal + deliveryCharge - discountAmount, 0);
+        const vatAmount = vatEnabled ? (taxableAmount * vatPercent) / 100 : 0;
         const grandTotal = Math.max(
-            itemsTotal + deliveryCharge - discountAmount,
+            taxableAmount + vatAmount,
             0
         );
 
@@ -891,6 +901,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (checkoutDiscountAmount) {
             checkoutDiscountAmount.textContent = `-${money(discountAmount)}`;
+        }
+
+        if (checkoutVatRow) {
+            checkoutVatRow.hidden = !vatEnabled || vatAmount <= 0;
+        }
+
+        if (checkoutVatAmount) {
+            checkoutVatAmount.textContent = money(vatAmount);
+        }
+
+        if (checkoutVatPercent) {
+            checkoutVatPercent.textContent = vatPercent.toFixed(2).replace(/\.00$/, '');
         }
 
         if (checkoutGrandTotal) {
@@ -1572,8 +1594,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const discountAmount = Number(
             appliedCoupon?.discount_amount || 0
         );
+        const vatEnabled = checkoutVatRow?.dataset.vatEnabled === '1';
+        const vatPercent = Number(checkoutVatRow?.dataset.vatPercent || 0);
+        const taxableAmount = Math.max(itemsTotal + deliveryCharge - discountAmount, 0);
+        const vatAmount = vatEnabled ? (taxableAmount * vatPercent) / 100 : 0;
         const grandTotal = Math.max(
-            itemsTotal + deliveryCharge - discountAmount,
+            taxableAmount + vatAmount,
             0
         );
 
@@ -1587,6 +1613,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (confirmDeliveryCharge) confirmDeliveryCharge.textContent = plainMoney(deliveryCharge);
         if (confirmDiscountRow) confirmDiscountRow.hidden = discountAmount <= 0;
         if (confirmDiscountAmount) confirmDiscountAmount.textContent = plainMoney(discountAmount);
+        if (confirmVatRow) confirmVatRow.hidden = !vatEnabled || vatAmount <= 0;
+        if (confirmVatAmount) confirmVatAmount.textContent = plainMoney(vatAmount);
+        if (confirmVatPercent) confirmVatPercent.textContent = vatPercent.toFixed(2).replace(/\.00$/, '');
         if (confirmGrandTotal) confirmGrandTotal.textContent = plainMoney(grandTotal);
     }
 

@@ -262,6 +262,12 @@
                         <strong>-৳{{ number_format($order->coupon_discount_amount, 2) }}</strong>
                     </div>
                 @endif
+                @if ((float) ($order->vat_amount ?? 0) > 0)
+                    <div>
+                        <span>Added VAT ({{ number_format((float) $order->vat_percent, 2) }}%)</span>
+                        <strong>৳{{ number_format((float) $order->vat_amount, 2) }}</strong>
+                    </div>
+                @endif
                 <div class="grand">
                     <span>Grand Total</span>
                     <strong>৳{{ number_format($order->grand_total, 2) }}</strong>

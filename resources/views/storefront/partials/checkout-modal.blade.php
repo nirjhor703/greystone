@@ -488,6 +488,20 @@
                             </strong>
                         </div>
 
+                        <div
+                            class="checkout-discount-row"
+                            id="checkoutVatRow"
+                            data-vat-enabled="{{ \App\Models\InvestmentSetting::getValue('vat_enabled', '0') === '1' ? '1' : '0' }}"
+                            data-vat-percent="{{ \App\Models\InvestmentSetting::getValue('vat_percent', '15') }}"
+                            hidden
+                        >
+                            <span>Added VAT (<span id="checkoutVatPercent">{{ \App\Models\InvestmentSetting::getValue('vat_percent', '15') }}</span>%)</span>
+
+                            <strong id="checkoutVatAmount">
+                                ৳0
+                            </strong>
+                        </div>
+
                         <div class="grand-total">
                             <span>Grand Total</span>
 
@@ -641,6 +655,15 @@
                 >
                     <span>Coupon Discount</span>
                     <strong>-৳ <span id="confirmDiscountAmount">0</span></strong>
+                </div>
+
+                <div
+                    class="confirm-total-row"
+                    id="confirmVatRow"
+                    hidden
+                >
+                    <span>Added VAT (<span id="confirmVatPercent">{{ \App\Models\InvestmentSetting::getValue('vat_percent', '15') }}</span>%)</span>
+                    <strong>৳ <span id="confirmVatAmount">0</span></strong>
                 </div>
 
                 <div class="confirm-total-row grand">

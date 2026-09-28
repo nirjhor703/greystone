@@ -21,6 +21,16 @@
         <td>{{ $order->brand?->name ?? '-' }}</td>
 
         <td>
+            {{ App\Models\Order::sourceOptions()[$order->order_source] ?? str($order->order_source ?: 'cart')->replace('_', ' ')->title() }}
+            <small class="order-table-muted">
+                {{ App\Models\Order::channelOptions()[$order->order_channel] ?? str($order->order_channel ?: 'online')->title() }}
+                @if($order->addedBy?->name)
+                    · {{ $order->addedBy->name }}
+                @endif
+            </small>
+        </td>
+
+        <td>
             {{ $order->delivery_area === 'inside_dhaka' ? 'Inside Dhaka' : 'Outside Dhaka' }}
             <small class="order-table-muted">{{ $order->district }}</small>
         </td>

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Brand;
 use App\Models\InvestmentEntry;
 use App\Models\InvestmentInvestor;
+use App\Models\InvestmentSetting;
 use App\Models\Member;
 use App\Models\PeopleProfile;
 use App\Services\InvestmentSettlementCalculator;
@@ -35,6 +37,9 @@ class InvestmentController extends Controller
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
         $today = now()->toDateString();
+        $taxReservePercent = max(0, min(100, (float) InvestmentSetting::getValue('tax_reserve_percent', '15')));
+        $taxReserveAmount = round(($profitPreview * $taxReservePercent) / 100, 2);
+        $settlementDistributableProfit = max(0, round($profitPreview - $taxReserveAmount, 2));
 
         $investors = InvestmentInvestor::query()
             ->with(['member', 'peopleProfile'])
@@ -63,7 +68,7 @@ class InvestmentController extends Controller
         $settlementEntries = InvestmentEntry::query()
             ->whereDate('entry_date', '<=', CarbonImmutable::parse($settlementMonth.'-01')->endOfMonth()->toDateString())
             ->get();
-        $settlementRows = $settlementCalculator->calculate($settlementInvestors, $settlementEntries, $settlementMonth, $profitPreview);
+        $settlementRows = $settlementCalculator->calculate($settlementInvestors, $settlementEntries, $settlementMonth, $settlementDistributableProfit);
         $settlementTotalPayable = collect($settlementRows)->sum('payable');
         $settlementEndDate = CarbonImmutable::parse($settlementMonth.'-01')->endOfMonth()->toDateString();
         $settlementPaidInvestorIds = InvestmentEntry::query()
@@ -89,6 +94,7 @@ class InvestmentController extends Controller
 
         $entryQuery = InvestmentEntry::query()
             ->with('investor')
+            ->with('brand')
             ->when($ledgerSearch !== '', function ($query) use ($ledgerSearch): void {
                 $query->where(function ($query) use ($ledgerSearch): void {
                     $query->where('purpose', 'like', "%{$ledgerSearch}%")
@@ -126,6 +132,12 @@ class InvestmentController extends Controller
             ->sum('amount');
         $reportPaidOut = (float) $reportEntries
             ->whereIn('entry_type', ['profit_payout', 'capital_return'])
+            ->sum('amount');
+        $reportTaxReserve = (float) $reportEntries
+            ->where('entry_type', 'tax_reserve')
+            ->sum('amount');
+        $reportTaxPaid = (float) $reportEntries
+            ->where('entry_type', 'tax_paid')
             ->sum('amount');
         $reportProfit = $reportInvestment - $reportCost;
 
@@ -192,6 +204,8 @@ class InvestmentController extends Controller
             'entryTypes' => InvestmentEntry::TYPES,
             'entryStatuses' => InvestmentEntry::STATUSES,
             'entryChannels' => InvestmentEntry::CHANNELS,
+            'costCategories' => InvestmentEntry::COST_CATEGORIES,
+            'brands' => Brand::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'ledgerSearch' => $ledgerSearch,
             'overviewSearch' => $overviewSearch,
             'overviewInvestorResults' => $overviewInvestorResults,
@@ -211,6 +225,8 @@ class InvestmentController extends Controller
             'reportOnlineCost' => $reportOnlineCost,
             'reportOfflineCost' => $reportOfflineCost,
             'reportPaidOut' => $reportPaidOut,
+            'reportTaxReserve' => $reportTaxReserve,
+            'reportTaxPaid' => $reportTaxPaid,
             'reportProfit' => $reportProfit,
             'reportEntryCount' => $reportEntries->count(),
             'totalActiveCapital' => $totalActiveCapital,
@@ -219,7 +235,14 @@ class InvestmentController extends Controller
             'totalReturnedCapital' => InvestmentEntry::where('entry_type', 'capital_return')->sum('amount'),
             'totalBusinessCost' => InvestmentEntry::where('entry_type', 'business_cost')->sum('amount'),
             'totalPaidOut' => InvestmentEntry::where('entry_type', 'profit_payout')->sum('amount'),
+            'totalTaxReserve' => InvestmentEntry::where('entry_type', 'tax_reserve')->sum('amount'),
+            'totalTaxPaid' => InvestmentEntry::where('entry_type', 'tax_paid')->sum('amount'),
             'profitPreview' => $profitPreview,
+            'taxReservePercent' => $taxReservePercent,
+            'taxReserveAmount' => $taxReserveAmount,
+            'settlementDistributableProfit' => $settlementDistributableProfit,
+            'vatEnabled' => InvestmentSetting::getValue('vat_enabled', '0') === '1',
+            'vatPercent' => (float) InvestmentSetting::getValue('vat_percent', '15'),
             'activeInvestmentTab' => $activeInvestmentTab,
             'historyInvestorId' => $historyInvestorId,
             'historyInvestor' => $historyInvestor,
@@ -333,6 +356,9 @@ class InvestmentController extends Controller
 
         $month = (string) $data['settlement_month'];
         $profit = (float) $data['monthly_profit'];
+        $taxReservePercent = max(0, min(100, (float) InvestmentSetting::getValue('tax_reserve_percent', '15')));
+        $taxReserveAmount = round(($profit * $taxReservePercent) / 100, 2);
+        $distributableProfit = max(0, round($profit - $taxReserveAmount, 2));
         $investor = InvestmentInvestor::query()
             ->where('is_active', true)
             ->findOrFail($data['investment_investor_id']);
@@ -354,11 +380,28 @@ class InvestmentController extends Controller
             ->whereDate('entry_date', '<=', $monthEndDate)
             ->get();
 
-        $rows = $settlementCalculator->calculate($investors, $entries, $month, $profit);
+        $rows = $settlementCalculator->calculate($investors, $entries, $month, $distributableProfit);
         $row = collect($rows)->first(fn ($row) => $row['investor']->id === $investor->id);
 
         if (! $row || $row['payable'] <= 0) {
             return back()->withErrors('No payable amount found for this investor.');
+        }
+
+        if ($taxReserveAmount > 0) {
+            InvestmentEntry::query()->updateOrCreate(
+                [
+                    'entry_type' => 'tax_reserve',
+                    'entry_date' => $monthEndDate,
+                    'purpose' => 'Tax reserve - '.CarbonImmutable::parse($month.'-01')->format('M Y'),
+                ],
+                [
+                    'investment_channel' => 'online',
+                    'active_date' => $monthEndDate,
+                    'amount' => $taxReserveAmount,
+                    'note' => 'Gross monthly profit: ৳'.number_format($profit, 2).'. Reserve: '.number_format($taxReservePercent, 2).'%. Net distributable: ৳'.number_format($distributableProfit, 2).'.',
+                    'status' => 'active',
+                ]
+            );
         }
 
         InvestmentEntry::create([
@@ -369,11 +412,26 @@ class InvestmentController extends Controller
             'active_date' => $monthEndDate,
             'amount' => $row['payable'],
             'purpose' => 'Monthly profit settlement - '.CarbonImmutable::parse($month.'-01')->format('M Y'),
-            'note' => 'Monthly profit: ৳'.number_format($profit, 2).'. Share: '.number_format($row['share_percent'], 4).'%.',
+            'note' => 'Gross monthly profit: ৳'.number_format($profit, 2).'. Tax reserve: ৳'.number_format($taxReserveAmount, 2).' ('.number_format($taxReservePercent, 2).'%). Net distributable: ৳'.number_format($distributableProfit, 2).'. Share: '.number_format($row['share_percent'], 4).'%.',
             'status' => 'active',
         ]);
 
         return back()->with('status', $investor->name.' payout entry created.');
+    }
+
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'tax_reserve_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'vat_enabled' => ['nullable', 'boolean'],
+            'vat_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        InvestmentSetting::setValue('tax_reserve_percent', (string) round((float) $data['tax_reserve_percent'], 2));
+        InvestmentSetting::setValue('vat_enabled', $request->boolean('vat_enabled') ? '1' : '0');
+        InvestmentSetting::setValue('vat_percent', (string) round((float) $data['vat_percent'], 2));
+
+        return back()->with('status', 'Investment settings updated.');
     }
 
     private function validatedInvestor(Request $request): array
@@ -424,8 +482,10 @@ class InvestmentController extends Controller
     {
         $data = $request->validate([
             'investment_investor_id' => ['nullable', 'exists:investment_investors,id'],
+            'brand_id' => ['nullable', 'exists:brands,id'],
             'entry_type' => ['required', Rule::in(array_keys(InvestmentEntry::TYPES))],
             'investment_channel' => ['required', Rule::in(array_keys(InvestmentEntry::CHANNELS))],
+            'cost_category' => ['nullable', Rule::in(array_keys(InvestmentEntry::COST_CATEGORIES))],
             'entry_date' => ['required', 'date'],
             'active_date' => ['nullable', 'date'],
             'maturity_date' => ['nullable', 'date'],
@@ -446,6 +506,10 @@ class InvestmentController extends Controller
 
         if (! in_array($data['entry_type'], $investorRequiredTypes, true)) {
             $data['investment_investor_id'] = null;
+        }
+
+        if (! in_array($data['entry_type'], ['business_cost', 'tax_paid'], true)) {
+            $data['cost_category'] = null;
         }
 
         if ($data['entry_type'] !== 'investor_investment') {

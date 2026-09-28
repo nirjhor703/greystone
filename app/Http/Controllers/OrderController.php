@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use App\Models\Coupon;
+use App\Models\InvestmentSetting;
 use App\Models\MemberCoupon;
 use App\Models\Order;
 use App\Models\Product;
@@ -401,11 +402,12 @@ class OrderController extends Controller
                         );
                     }
     
+                    $taxableAmount = max($itemsTotal + $deliveryCharge - $couponDiscount, 0);
+                    $vat = $this->vatBreakdown($taxableAmount);
+
                     $grandTotal = round(
                         max(
-                            $itemsTotal
-                            + $deliveryCharge
-                            - $couponDiscount,
+                            $taxableAmount + $vat['amount'],
                             0
                         ),
                         2
@@ -532,6 +534,15 @@ class OrderController extends Controller
     
                         'delivery_charge' =>
                             $deliveryCharge,
+
+                        'vat_enabled' =>
+                            $vat['enabled'],
+
+                        'vat_percent' =>
+                            $vat['percent'],
+
+                        'vat_amount' =>
+                            $vat['amount'],
     
                         'grand_total' =>
                             $grandTotal,
@@ -547,6 +558,9 @@ class OrderController extends Controller
     
                         'order_source' =>
                             Order::SOURCE_CART,
+
+                        'order_channel' =>
+                            Order::CHANNEL_ONLINE,
                     ]);
     
                     $order->items()->createMany(
@@ -797,6 +811,19 @@ class OrderController extends Controller
         }
 
         return (float) $product->regular_price;
+    }
+
+    private function vatBreakdown(float $taxableAmount): array
+    {
+        $enabled = InvestmentSetting::getValue('vat_enabled', '0') === '1';
+        $percent = max(0, min(100, (float) InvestmentSetting::getValue('vat_percent', '15')));
+        $amount = $enabled ? round(max(0, $taxableAmount) * $percent / 100, 2) : 0.0;
+
+        return [
+            'enabled' => $enabled,
+            'percent' => $enabled ? $percent : 0.0,
+            'amount' => $amount,
+        ];
     }
 
     private function generateOrderNumber(): string

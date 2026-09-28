@@ -143,6 +143,20 @@
     @if ($filters['report_type'] === 'overview')
         <div class="report-box-grid">
             <a
+                href="{{ route('admin.reports.index', [...request()->query(), 'report_type' => 'business_accounting']) }}"
+                class="report-box"
+            >
+                <span><i class="fa-solid fa-calculator"></i></span>
+                <div>
+                    <h3>Business Accounting @include('admin.partials.info-help', ['key' => 'report_box_business_accounting', 'text' => 'Order income, ledger cost, VAT/tax and investor payout ekshathe net profit hishab.'])</h3>
+                    <p>Income, cost, VAT, tax and payout combined.</p>
+                </div>
+                <strong>৳{{ number_format($summary['net_profit'], 2) }}</strong>
+                <small>Income ৳{{ number_format($summary['revenue'], 2) }} · Cost ৳{{ number_format($summary['business_costs'], 2) }}</small>
+                <em>Open Details</em>
+            </a>
+
+            <a
                 href="{{ route('admin.reports.index', [...request()->query(), 'report_type' => 'revenue']) }}"
                 class="report-box"
             >
@@ -240,6 +254,17 @@
                 <strong>{{ number_format($summary['products_sold']) }}</strong>
             </article>
         </div>
+
+        @if ($filters['report_type'] === 'business_accounting')
+            <div class="investment-report-summary">
+                <article><span>Total Income</span><strong>৳{{ number_format($summary['revenue'], 2) }}</strong><small>Online ৳{{ number_format($summary['online_income'], 2) }} · Offline ৳{{ number_format($summary['offline_income'], 2) }}</small></article>
+                <article><span>Business Costs</span><strong>৳{{ number_format($summary['business_costs'], 2) }}</strong><small>Online ৳{{ number_format($summary['online_cost'], 2) }} · Offline ৳{{ number_format($summary['offline_cost'], 2) }}</small></article>
+                <article><span>VAT Collected</span><strong>৳{{ number_format($summary['vat_collected'], 2) }}</strong><small>Saved from order totals</small></article>
+                <article><span>Tax Reserve</span><strong>৳{{ number_format($summary['tax_reserve'], 2) }}</strong><small>Tax paid ৳{{ number_format($summary['tax_paid'], 2) }}</small></article>
+                <article><span>Investor Payout</span><strong>৳{{ number_format($summary['investor_payout'], 2) }}</strong><small>Profit payout ledger</small></article>
+                <article><span>Net Profit</span><strong>৳{{ number_format($summary['net_profit'], 2) }}</strong><small>Income - cost - tax paid - investor payout</small></article>
+            </div>
+        @endif
 
         <div class="report-sections">
             @include('admin.reports.partials.revenue-table')

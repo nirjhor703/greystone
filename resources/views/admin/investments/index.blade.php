@@ -22,6 +22,11 @@
         'due_pending' => 'Investor-er taka/profit ekhono ferot dewa baki thakle due pending hishabe count hoy.',
         'business_costs' => 'Business purpose-e kora khoroch, jemon fabric, packaging, hosting, transport, marketing.',
         'paid_out' => 'Investor profit payout ba capital return hishabe already paid amount.',
+        'tax_reserve' => 'Monthly profit payout-er age future yearly tax-er jonno je amount alada kore rakha hoy.',
+        'tax_paid' => 'Actual tax payment hoye gele Tax Paid ledger entry diye ekhane track korun.',
+        'tax_reserve_percent' => 'Monthly gross profit theke koto percent tax reserve hishabe kete rakha hobe. Business level change hole eta update korun.',
+        'vat_setting' => 'VAT eligible hole on korben. On thakle checkout-e excluded VAT customer total-er sathe add hoye show/save hobe.',
+        'net_distributable_profit' => 'Gross monthly profit theke tax reserve bad diye investor payout-er jonno remaining amount.',
         'investors_total' => 'System-e total investor profile count.',
         'search_everything' => 'Investor name, phone, amount, purpose ba note diye quick search kora jay.',
         'settlement_month' => 'Kon month-er profit share calculate korben seta select korun.',
@@ -118,6 +123,8 @@
                 </article>
                 <article><span>Business Costs {!! $infoHelp('business_costs') !!}</span><strong>৳{{ number_format((float) $totalBusinessCost, 2) }}</strong></article>
                 <article><span>Paid Out {!! $infoHelp('paid_out') !!}</span><strong>৳{{ number_format((float) $totalPaidOut, 2) }}</strong></article>
+                <article><span>Tax Reserve Held {!! $infoHelp('tax_reserve') !!}</span><strong>৳{{ number_format(max(0, (float) $totalTaxReserve - (float) $totalTaxPaid), 2) }}</strong></article>
+                <article><span>Tax Paid {!! $infoHelp('tax_paid') !!}</span><strong>৳{{ number_format((float) $totalTaxPaid, 2) }}</strong></article>
                 <article><span>Investors {!! $infoHelp('investors_total') !!}</span><strong>{{ number_format($investors->count()) }}</strong></article>
             </div>
 
@@ -210,9 +217,35 @@
             <div class="customer-stat-grid">
                 <article><span>Settlement Month {!! $infoHelp('settlement_month') !!}</span><strong>{{ \Carbon\CarbonImmutable::parse($settlementMonth.'-01')->format('M Y') }}</strong></article>
                 <article><span>Monthly Profit {!! $infoHelp('monthly_profit') !!}</span><strong>৳{{ number_format((float) $profitPreview, 2) }}</strong></article>
+                <article><span>Tax Reserve {!! $infoHelp('tax_reserve') !!}</span><strong>৳{{ number_format((float) $taxReserveAmount, 2) }}</strong><small>{{ number_format((float) $taxReservePercent, 2) }}%</small></article>
+                <article><span>Net Distributable {!! $infoHelp('net_distributable_profit') !!}</span><strong>৳{{ number_format((float) $settlementDistributableProfit, 2) }}</strong></article>
                 <article><span>Total Payable {!! $infoHelp('total_payable') !!}</span><strong>৳{{ number_format($settlementTotalPayable, 2) }}</strong></article>
                 <article><span>Paid Investors {!! $infoHelp('paid_investors') !!}</span><strong>{{ number_format(count($settlementPaidInvestorIds)) }}</strong></article>
             </div>
+
+            <form method="POST" action="{{ route('admin.investment-settings.update') }}" class="admin-ajax-search investment-preview-form">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="investment_tab" value="settlement">
+                <div class="admin-search-grid">
+                    <div class="admin-search-field">
+                        <label>Tax Reserve % {!! $infoHelp('tax_reserve_percent') !!}</label>
+                        <input type="number" name="tax_reserve_percent" min="0" max="100" step="0.01" value="{{ $taxReservePercent }}">
+                    </div>
+                    <div class="admin-search-field">
+                        <label>VAT Status {!! $infoHelp('vat_setting') !!}</label>
+                        <select name="vat_enabled">
+                            <option value="0" @selected(! $vatEnabled)>VAT Off</option>
+                            <option value="1" @selected($vatEnabled)>VAT On</option>
+                        </select>
+                    </div>
+                    <div class="admin-search-field">
+                        <label>VAT % {!! $infoHelp('vat_setting') !!}</label>
+                        <input type="number" name="vat_percent" min="0" max="100" step="0.01" value="{{ $vatPercent }}">
+                    </div>
+                    <button class="brand-secondary-button" type="submit">Save Tax Reserve</button>
+                </div>
+            </form>
 
             <form method="GET" class="admin-ajax-search investment-preview-form">
                 <input type="hidden" name="investment_tab" value="settlement">
@@ -236,14 +269,14 @@
 
             <div class="investment-note-box">
                 <strong>Monthly profit settlement</strong>
-                <span>Enter final monthly profit after salaries, commissions, costs and tax adjustments. The system calculates each investor’s payable by date-weighted active capital for that month.</span>
+                <span>Enter gross monthly profit. System tax reserve kete net distributable profit ber korbe, then investor payout calculate korbe.</span>
             </div>
 
             <div class="investment-settlement-panel">
                 <div class="investment-settlement-head">
                     <div>
                         <strong>{{ \Carbon\CarbonImmutable::parse($settlementMonth.'-01')->format('F Y') }} Payable</strong>
-                        <span>Total calculated payout: ৳{{ number_format($settlementTotalPayable, 2) }}</span>
+                        <span>Gross ৳{{ number_format((float) $profitPreview, 2) }} · Tax reserve ৳{{ number_format((float) $taxReserveAmount, 2) }} · Net payout pool ৳{{ number_format((float) $settlementDistributableProfit, 2) }}</span>
                     </div>
                     <span class="investment-settlement-hint">Create payout one investor at a time.</span>
                 </div>
@@ -519,6 +552,11 @@
                 <strong>৳{{ number_format($reportPaidOut, 2) }}</strong>
                 <small>{{ number_format($reportEntryCount) }} ledger entries</small>
             </article>
+            <article>
+                <span>Tax Reserve {!! $infoHelp('tax_reserve') !!}</span>
+                <strong>৳{{ number_format($reportTaxReserve, 2) }}</strong>
+                <small>Tax paid ৳{{ number_format($reportTaxPaid, 2) }}</small>
+            </article>
         </div>
 
         <form method="GET" class="investment-report-filter no-print" id="investmentReports">
@@ -563,8 +601,10 @@
                             $entryPayload = [
                                 'id' => $entry->id,
                                 'investment_investor_id' => $entry->investment_investor_id,
+                                'brand_id' => $entry->brand_id,
                                 'entry_type' => $entry->entry_type,
                                 'investment_channel' => $entry->investment_channel,
+                                'cost_category' => $entry->cost_category,
                                 'entry_date' => $entry->entry_date?->format('Y-m-d'),
                                 'active_date' => $entry->active_date?->format('Y-m-d'),
                                 'maturity_date' => $entry->maturity_date?->format('Y-m-d'),
@@ -579,7 +619,7 @@
                         <tr>
                             <td><strong>{{ $entry->entry_date?->format('d M Y') }}</strong></td>
                             <td><span class="people-profile-type">{{ $entry->typeLabel() }}</span></td>
-                            <td><strong>{{ $entry->channelLabel() }}</strong><small>{{ $entry->entry_type === 'investor_investment' ? 'Active: '.($entry->active_date?->format('d M Y') ?: 'pending') : $entry->statusLabel() }}</small></td>
+                            <td><strong>{{ $entry->channelLabel() }}</strong><small>{{ $entry->brand?->name ?: ($entry->cost_category ? ($costCategories[$entry->cost_category] ?? $entry->cost_category) : ($entry->entry_type === 'investor_investment' ? 'Active: '.($entry->active_date?->format('d M Y') ?: 'pending') : $entry->statusLabel())) }}</small></td>
                             <td>{{ $entry->investor?->name ?: 'Business / Owner / Cost' }}</td>
                             <td><strong>{{ $entry->purpose ?: '-' }}</strong><small>{{ Str::limit($entry->note ?: '', 46) }}</small></td>
                             <td><strong>৳{{ number_format((float) $entry->amount, 2) }}</strong></td>
@@ -759,6 +799,8 @@
                                 <div class="people-profile-fields">
                                     <label>Entry Type {!! $infoHelp('entry_type') !!}<select id="{{ $mode }}_entry_type" name="entry_type" required data-entry-type-select>@foreach($entryTypes as $key => $label)<option value="{{ $key }}">{{ $label }}</option>@endforeach</select></label>
                                     <label>Source<select id="{{ $mode }}_entry_investment_channel" name="investment_channel" required>@foreach($entryChannels as $key => $label)<option value="{{ $key }}">{{ $label }}</option>@endforeach</select></label>
+                                    <label>Brand / Store<select id="{{ $mode }}_entry_brand_id" name="brand_id"><option value="">General business</option>@foreach($brands as $brand)<option value="{{ $brand->id }}">{{ $brand->name }}</option>@endforeach</select></label>
+                                    <label>Cost Category<select id="{{ $mode }}_entry_cost_category" name="cost_category"><option value="">No category</option>@foreach($costCategories as $key => $label)<option value="{{ $key }}">{{ $label }}</option>@endforeach</select></label>
                                     <label data-entry-investor-field>Investor<select id="{{ $mode }}_entry_investment_investor_id" name="investment_investor_id"><option value="">Select investor</option>@foreach($investors as $investor)<option value="{{ $investor->id }}">{{ $investor->name }}</option>@endforeach</select></label>
                                     <label>Received Date<input id="{{ $mode }}_entry_entry_date" type="date" name="entry_date" value="{{ now()->format('Y-m-d') }}" required></label>
                                     <label data-entry-active-date-field>Active Date {!! $infoHelp('active_date') !!}<input id="{{ $mode }}_entry_active_date" type="date" name="active_date" value="{{ now()->format('Y-m-d') }}"><small>Pending thakle future active date dite paro.</small></label>

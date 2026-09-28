@@ -86,6 +86,26 @@
                 </div>
 
                 <div class="admin-search-field">
+                    <label>Channel</label>
+                    <select name="order_channel">
+                        <option value="">All Channel</option>
+                        @foreach ($orderChannels as $key => $label)
+                            <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="admin-search-field">
+                    <label>Source</label>
+                    <select name="order_source">
+                        <option value="">All Source</option>
+                        @foreach ($orderSources as $key => $label)
+                            <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="admin-search-field">
                     <label>Courier @include('admin.partials.info-help', ['key' => 'orders_courier_filter', 'text' => 'Steadfast/courier delivery status diye order filter kora jay.'])</label>
                     <select name="courier_status">
                         <option value="">All Courier</option>
@@ -120,6 +140,7 @@
                         <th>Invoice</th>
                         <th>Customer</th>
                         <th>Brand</th>
+                        <th>Source</th>
                         <th>Delivery</th>
                         <th>Items</th>
                         <th>Total</th>
@@ -159,6 +180,16 @@
                             </td>
 
                             <td>{{ $order->brand?->name ?? '-' }}</td>
+
+                            <td>
+                                {{ App\Models\Order::sourceOptions()[$order->order_source] ?? str($order->order_source ?: 'cart')->replace('_', ' ')->title() }}
+                                <small class="order-table-muted">
+                                    {{ App\Models\Order::channelOptions()[$order->order_channel] ?? str($order->order_channel ?: 'online')->title() }}
+                                    @if($order->addedBy?->name)
+                                        · {{ $order->addedBy->name }}
+                                    @endif
+                                </small>
+                            </td>
 
                             <td>
                                 {{ $order->delivery_area === 'inside_dhaka' ? 'Inside Dhaka' : 'Outside Dhaka' }}
@@ -344,6 +375,32 @@
                                 </div>
 
                                 <div class="brand-form-grid">
+                                    <div class="brand-form-field">
+                                        <label>Order Channel <span>*</span></label>
+                                        <select name="order_channel" id="{{ $prefix }}_order_channel">
+                                            @foreach ($orderChannels as $key => $label)
+                                                <option value="{{ $key }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="brand-field-error order_channel_error"></small>
+                                    </div>
+
+                                    <div class="brand-form-field">
+                                        <label>Order Source <span>*</span></label>
+                                        <select name="order_source" id="{{ $prefix }}_order_source">
+                                            @foreach ($orderSources as $key => $label)
+                                                <option value="{{ $key }}" @selected($prefix === 'add' && $key === App\Models\Order::SOURCE_ADMIN_MANUAL)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        <small class="brand-field-error order_source_error"></small>
+                                    </div>
+
+                                    <div class="brand-form-field brand-full-field">
+                                        <label>Source Note</label>
+                                        <input type="text" name="source_note" id="{{ $prefix }}_source_note" maxlength="255" placeholder="Example: customer ordered by phone / Facebook inbox">
+                                        <small class="brand-field-error source_note_error"></small>
+                                    </div>
+
                                     <div class="brand-form-field">
                                         <label>Brand <span>*</span></label>
                                         <select name="brand_id" id="{{ $prefix }}_brand_id">

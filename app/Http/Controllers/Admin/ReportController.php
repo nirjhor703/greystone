@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
+use App\Models\InvestmentEntry;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
@@ -40,6 +41,20 @@ class ReportController extends Controller
         $revenueRows = $this->revenueRows($validOrders, $filters);
         $customerRows = $this->customerRows($validOrders, $filters);
         $productRows = $this->productRows($filters);
+        $ledgerEntries = InvestmentEntry::query()
+            ->whereBetween('entry_date', [
+                $filters['start']->toDateString(),
+                $filters['end']->toDateString(),
+            ])
+            ->get();
+        $businessCosts = (float) $ledgerEntries->where('entry_type', 'business_cost')->sum('amount');
+        $taxReserve = (float) $ledgerEntries->where('entry_type', 'tax_reserve')->sum('amount');
+        $taxPaid = (float) $ledgerEntries->where('entry_type', 'tax_paid')->sum('amount');
+        $investorPayout = (float) $ledgerEntries->where('entry_type', 'profit_payout')->sum('amount');
+        $onlineIncome = (float) $validOrders->where('order_channel', Order::CHANNEL_ONLINE)->sum('grand_total');
+        $offlineIncome = (float) $validOrders->where('order_channel', Order::CHANNEL_OFFLINE)->sum('grand_total');
+        $onlineCost = (float) $ledgerEntries->where('investment_channel', 'online')->where('entry_type', 'business_cost')->sum('amount');
+        $offlineCost = (float) $ledgerEntries->where('investment_channel', 'offline')->where('entry_type', 'business_cost')->sum('amount');
         $customerSegments = $this->customerSegments(
             $validOrders,
             $filters['start'],
@@ -73,6 +88,16 @@ class ReportController extends Controller
                 'new_customers' => $customerSegments['new'],
                 'repeat_customers' => $customerSegments['repeat'],
                 'products_sold' => (int) $productRows->sum('quantity'),
+                'vat_collected' => (float) $validOrders->sum('vat_amount'),
+                'business_costs' => $businessCosts,
+                'tax_reserve' => $taxReserve,
+                'tax_paid' => $taxPaid,
+                'investor_payout' => $investorPayout,
+                'net_profit' => (float) $validOrders->sum('grand_total') - $businessCosts - $taxPaid - $investorPayout,
+                'online_income' => $onlineIncome,
+                'offline_income' => $offlineIncome,
+                'online_cost' => $onlineCost,
+                'offline_cost' => $offlineCost,
             ],
             'exportUrl' => route(
                 'admin.reports.export',

@@ -27,6 +27,16 @@ class Order extends Model
 
     public const SOURCE_CART = 'cart';
     public const SOURCE_BUY_NOW = 'buy_now';
+    public const SOURCE_ADMIN_MANUAL = 'admin_manual';
+    public const SOURCE_PHONE = 'phone';
+    public const SOURCE_FACEBOOK = 'facebook';
+    public const SOURCE_INSTAGRAM = 'instagram';
+    public const SOURCE_WHATSAPP = 'whatsapp';
+    public const SOURCE_STORE = 'store';
+    public const SOURCE_OTHER = 'other';
+
+    public const CHANNEL_ONLINE = 'online';
+    public const CHANNEL_OFFLINE = 'offline';
 
     public const QC_NOT_CHECKED = 'not_checked';
     public const QC_PASSED = 'passed';
@@ -57,6 +67,9 @@ class Order extends Model
         'coupon_code',
         'coupon_discount_amount',
         'coupon_snapshot',
+        'vat_enabled',
+        'vat_percent',
+        'vat_amount',
     
         'items_total',
         'delivery_charge',
@@ -82,6 +95,9 @@ class Order extends Model
         'steadfast_error',
     
         'order_source',
+        'order_channel',
+        'source_note',
+        'added_by_user_id',
     ];
 
     protected $casts = [
@@ -89,6 +105,9 @@ class Order extends Model
         'delivery_charge' => 'decimal:2',
         'coupon_discount_amount' => 'decimal:2',
         'grand_total' => 'decimal:2',
+        'vat_enabled' => 'boolean',
+        'vat_percent' => 'decimal:2',
+        'vat_amount' => 'decimal:2',
 
         'sent_to_steadfast_at' => 'datetime',
         'confirmed_at' => 'datetime',
@@ -105,6 +124,29 @@ class Order extends Model
             self::STATUS_CONFIRMED,
             self::STATUS_CANCELLED,
             self::STATUS_DELIVERED,
+        ];
+    }
+
+    public static function sourceOptions(): array
+    {
+        return [
+            self::SOURCE_CART => 'Website Cart',
+            self::SOURCE_BUY_NOW => 'Website Buy Now',
+            self::SOURCE_ADMIN_MANUAL => 'Admin Manual',
+            self::SOURCE_PHONE => 'Phone Order',
+            self::SOURCE_FACEBOOK => 'Facebook',
+            self::SOURCE_INSTAGRAM => 'Instagram',
+            self::SOURCE_WHATSAPP => 'WhatsApp',
+            self::SOURCE_STORE => 'Physical Store',
+            self::SOURCE_OTHER => 'Other',
+        ];
+    }
+
+    public static function channelOptions(): array
+    {
+        return [
+            self::CHANNEL_ONLINE => 'Online',
+            self::CHANNEL_OFFLINE => 'Offline',
         ];
     }
 
@@ -159,6 +201,11 @@ class Order extends Model
             User::class,
             'qc_resolved_by_user_id'
         );
+    }
+
+    public function addedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'added_by_user_id');
     }
 
     public function coupon(): BelongsTo

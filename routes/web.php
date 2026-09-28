@@ -149,6 +149,7 @@ Route::middleware(['auth', 'admin.active'])
         Route::put('/management/investment-entries/{entry}', [AdminInvestmentController::class, 'updateEntry'])->middleware('admin.permission:customers.view')->name('investment-entries.update');
         Route::delete('/management/investment-entries/{entry}', [AdminInvestmentController::class, 'destroyEntry'])->middleware('admin.permission:customers.view')->name('investment-entries.destroy');
         Route::post('/management/investment-settlements', [AdminInvestmentController::class, 'storeSettlement'])->middleware('admin.permission:customers.view')->name('investment-settlements.store');
+        Route::put('/management/investment-settings', [AdminInvestmentController::class, 'updateSettings'])->middleware('admin.permission:customers.view')->name('investment-settings.update');
 
         Route::get('/customers/referrers', [AdminReferrerController::class, 'index'])->middleware('admin.permission:customers.view')->name('referrers.index');
         Route::post('/customers/referrers', [AdminReferrerController::class, 'store'])->middleware('admin.permission:customers.view')->name('referrers.store');

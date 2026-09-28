@@ -290,6 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
             [
                 'entry_type',
                 'investment_channel',
+                'brand_id',
+                'cost_category',
                 'investment_investor_id',
                 'entry_date',
                 'active_date',

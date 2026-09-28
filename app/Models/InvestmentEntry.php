@@ -12,6 +12,8 @@ class InvestmentEntry extends Model
         'business_cost' => 'Business Cost',
         'profit_payout' => 'Profit Payout',
         'capital_return' => 'Capital Return',
+        'tax_reserve' => 'Tax Reserve',
+        'tax_paid' => 'Tax Paid',
         'loan_received' => 'Loan Received',
         'loan_payment' => 'Loan Payment',
     ];
@@ -29,10 +31,24 @@ class InvestmentEntry extends Model
         'cancelled' => 'Cancelled',
     ];
 
+    public const COST_CATEGORIES = [
+        'product_purchase' => 'Product Purchase',
+        'fabric' => 'Fabric',
+        'packaging' => 'Packaging',
+        'delivery' => 'Delivery',
+        'marketing' => 'Marketing',
+        'hosting_domain' => 'Hosting / Domain',
+        'salary' => 'Salary',
+        'tax_vat' => 'Tax / VAT',
+        'other' => 'Other',
+    ];
+
     protected $fillable = [
         'investment_investor_id',
+        'brand_id',
         'entry_type',
         'investment_channel',
+        'cost_category',
         'entry_date',
         'active_date',
         'maturity_date',
@@ -54,6 +70,11 @@ class InvestmentEntry extends Model
     public function investor(): BelongsTo
     {
         return $this->belongsTo(InvestmentInvestor::class, 'investment_investor_id');
+    }
+
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class);
     }
 
     public function typeLabel(): string

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
+use App\Models\InvestmentSetting;
 use App\Models\Order;
 use App\Models\OrderActivityLog;
 use App\Models\Product;
@@ -43,6 +44,7 @@ class OrderController extends Controller
                 'qcBy',
                 'qcResolvedBy',
                 'confirmedBy',
+                'addedBy',
             ])
             ->latest('id')
             ->get();
@@ -54,11 +56,15 @@ class OrderController extends Controller
             );
         }
 
-        return view('admin.orders.index', compact(
-            'brands',
-            'products',
-            'orders'
-        ));
+        return view('admin.orders.index', [
+            'brands' => $brands,
+            'products' => $products,
+            'orders' => $orders,
+            'orderChannels' => Order::channelOptions(),
+            'orderSources' => Order::sourceOptions(),
+            'vatEnabled' => InvestmentSetting::getValue('vat_enabled', '0') === '1',
+            'vatPercent' => (float) InvestmentSetting::getValue('vat_percent', '15'),
+        ]);
     }
 
     public function show(Order $order): JsonResponse
@@ -70,6 +76,7 @@ class OrderController extends Controller
             'qcBy',
             'qcResolvedBy',
             'confirmedBy',
+            'addedBy',
             'activityLogs.user',
         ]);
 
@@ -88,6 +95,7 @@ class OrderController extends Controller
 
         try {
             $order = DB::transaction(function () use (
+                $request,
                 $validated,
                 $orderNumbers
             ): Order {
@@ -111,7 +119,7 @@ class OrderController extends Controller
                         $orderNumbers->generateInvoiceNumber($brand),
                     'courier_status' => 'not_sent',
                     'qc_status' => Order::QC_NOT_CHECKED,
-                    'order_source' => Order::SOURCE_CART,
+                    'added_by_user_id' => $request->user()?->id,
                 ]);
 
                 if ($validated['status'] === Order::STATUS_CONFIRMED) {
@@ -547,6 +555,19 @@ class OrderController extends Controller
                     Order::PAYMENT_PAID,
                 ]),
             ],
+            'order_channel' => [
+                'required',
+                Rule::in(array_keys(Order::channelOptions())),
+            ],
+            'order_source' => [
+                'required',
+                Rule::in(array_keys(Order::sourceOptions())),
+            ],
+            'source_note' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'items' => [
                 'required',
                 'array',
@@ -605,6 +626,12 @@ class OrderController extends Controller
             ->when($request->filled('status'), function ($query) use ($request): void {
                 $query->where('status', $request->input('status'));
             })
+            ->when($request->filled('order_channel'), function ($query) use ($request): void {
+                $query->where('order_channel', $request->input('order_channel'));
+            })
+            ->when($request->filled('order_source'), function ($query) use ($request): void {
+                $query->where('order_source', $request->input('order_source'));
+            })
             ->when($request->filled('courier_status'), function ($query) use ($request): void {
                 if ($request->input('courier_status') === 'not_sent') {
                     $query->whereNull('sent_to_steadfast_at');
@@ -630,6 +657,7 @@ class OrderController extends Controller
             === 'inside_dhaka'
                 ? 80
                 : 130;
+        $vat = $this->vatBreakdown($itemsTotal + $deliveryCharge - $couponDiscount);
 
         return [
             'brand_id' => (int) $validated['brand_id'],
@@ -650,12 +678,18 @@ class OrderController extends Controller
             'payment_method' => Order::PAYMENT_COD,
             'items_total' => $itemsTotal,
             'delivery_charge' => $deliveryCharge,
+            'vat_enabled' => $vat['enabled'],
+            'vat_percent' => $vat['percent'],
+            'vat_amount' => $vat['amount'],
             'grand_total' => max(
-                $itemsTotal + $deliveryCharge - $couponDiscount,
+                $itemsTotal + $deliveryCharge - $couponDiscount + $vat['amount'],
                 0
             ),
             'status' => $validated['status'],
             'payment_status' => $validated['payment_status'],
+            'order_channel' => $validated['order_channel'],
+            'order_source' => $validated['order_source'],
+            'source_note' => $this->nullableTrim($validated['source_note'] ?? null),
         ];
     }
 
@@ -818,7 +852,16 @@ class OrderController extends Controller
                 (float) $order->coupon_discount_amount,
             'items_total' => (float) $order->items_total,
             'delivery_charge' => (float) $order->delivery_charge,
+            'vat_enabled' => (bool) $order->vat_enabled,
+            'vat_percent' => (float) $order->vat_percent,
+            'vat_amount' => (float) $order->vat_amount,
             'grand_total' => (float) $order->grand_total,
+            'order_channel' => $order->order_channel ?: Order::CHANNEL_ONLINE,
+            'order_channel_label' => Order::channelOptions()[$order->order_channel] ?? str($order->order_channel ?: 'online')->title(),
+            'order_source' => $order->order_source ?: Order::SOURCE_CART,
+            'order_source_label' => Order::sourceOptions()[$order->order_source] ?? str($order->order_source ?: 'cart')->replace('_', ' ')->title(),
+            'source_note' => $order->source_note,
+            'added_by' => $order->addedBy?->name,
             'status' => $order->status,
             'payment_status' => $order->payment_status,
             'confirmed_at' =>
@@ -875,8 +918,22 @@ class OrderController extends Controller
             'qcBy',
             'qcResolvedBy',
             'confirmedBy',
+            'addedBy',
             'activityLogs.user',
         ]);
+    }
+
+    private function vatBreakdown(float $taxableAmount): array
+    {
+        $enabled = InvestmentSetting::getValue('vat_enabled', '0') === '1';
+        $percent = max(0, min(100, (float) InvestmentSetting::getValue('vat_percent', '15')));
+        $amount = $enabled ? round(max(0, $taxableAmount) * $percent / 100, 2) : 0.0;
+
+        return [
+            'enabled' => $enabled,
+            'percent' => $enabled ? $percent : 0.0,
+            'amount' => $amount,
+        ];
     }
 
     private function markConfirmed(Order $order): void

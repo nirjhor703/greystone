@@ -41,6 +41,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
 if (isset($_ENV['VERCEL']) || getenv('VERCEL')) {
     $storagePath = '/tmp/greystone-storage';
+    $databasePath = '/tmp/greystone.sqlite';
 
     foreach ([
         'app/private',
@@ -53,6 +54,10 @@ if (isset($_ENV['VERCEL']) || getenv('VERCEL')) {
         if (! is_dir($path = $storagePath.'/'.$directory)) {
             mkdir($path, 0755, true);
         }
+    }
+
+    if (! is_file($databasePath) && is_file(dirname(__DIR__).'/database/database.sqlite')) {
+        copy(dirname(__DIR__).'/database/database.sqlite', $databasePath);
     }
 
     $app->useStoragePath($storagePath);

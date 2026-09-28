@@ -276,6 +276,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'order_note',
             'status',
             'payment_status',
+            'order_channel',
+            'order_source',
+            'source_note',
         ].forEach((field) => {
             const input = document.getElementById(`${prefix}_${field}`);
             if (input) {
@@ -433,6 +436,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </td>
                 <td>${escapeHtml(order.brand_name || '-')}</td>
+                <td>
+                    ${escapeHtml(order.order_source_label || '-')}
+                    <small class="order-table-muted">
+                        ${escapeHtml(order.order_channel_label || '-')}
+                        ${order.added_by ? ` · ${escapeHtml(order.added_by)}` : ''}
+                    </small>
+                </td>
                 <td>
                     ${escapeHtml(order.delivery_area_label)}
                     <small class="order-table-muted">
