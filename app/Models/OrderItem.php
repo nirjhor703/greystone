@@ -20,6 +20,12 @@ class OrderItem extends Model
 
         'size',
         'color',
+        'packaging_type',
+        'packaging_tier_id',
+        'packaging_tier_name',
+        'packaging_min_pieces',
+        'packaging_max_pieces',
+        'packaging_charge',
 
         'quantity',
         'unit_price',
@@ -28,6 +34,10 @@ class OrderItem extends Model
 
     protected $casts = [
         'quantity' => 'integer',
+        'packaging_charge' => 'decimal:2',
+        'packaging_tier_id' => 'integer',
+        'packaging_min_pieces' => 'integer',
+        'packaging_max_pieces' => 'integer',
         'unit_price' => 'decimal:2',
         'total_price' => 'decimal:2',
     ];

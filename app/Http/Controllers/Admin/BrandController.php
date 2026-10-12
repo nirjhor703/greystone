@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use App\Services\MediaOptimizationService;
 
 class BrandController extends Controller
 {
@@ -365,9 +366,11 @@ class BrandController extends Controller
                 ? 'brands/banners'
                 : 'brands';
 
-            $data[$field] = $request
-                ->file($field)
-                ->store($directory, 'public');
+            $data[$field] = app(MediaOptimizationService::class)->optimize(
+                $request->file($field),
+                $directory,
+                in_array($field, ['logo', 'mobile_logo', 'favicon'], true) ? 'card' : 'large'
+            )['path'];
         }
 
         unset($data['offer_banners']);
@@ -376,7 +379,7 @@ class BrandController extends Controller
             $banners = collect($brand?->offer_banners ?? []);
 
             foreach ($request->file('offer_banners') as $banner) {
-                $banners->push($banner->store('brands/offers', 'public'));
+                $banners->push(app(MediaOptimizationService::class)->optimize($banner, 'brands/offers', 'large')['path']);
             }
 
             $data['offer_banners'] = $banners

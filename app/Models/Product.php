@@ -57,6 +57,9 @@ class Product extends Model
         'is_featured',
         'is_new_arrival',
         'is_sales_badge',
+        'packaging_type_enabled',
+        'premium_packaging_tier_override',
+        'premium_packaging_charge',
         'status',
     ];
 
@@ -69,6 +72,9 @@ class Product extends Model
         'is_featured' => 'boolean',
         'is_new_arrival' => 'boolean',
         'is_sales_badge' => 'boolean',
+        'packaging_type_enabled' => 'boolean',
+        'premium_packaging_tier_override' => 'boolean',
+        'premium_packaging_charge' => 'decimal:2',
     ];
 
     
@@ -128,6 +134,11 @@ class Product extends Model
     public function sweetCoolInquiries(): HasMany
     {
         return $this->hasMany(SweetCoolInquiry::class);
+    }
+
+    public function premiumPackagingTiers(): HasMany
+    {
+        return $this->hasMany(PremiumPackagingTier::class)->orderBy('sort_order')->orderBy('id');
     }
 
 

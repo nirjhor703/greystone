@@ -57,6 +57,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    let organizationDepartments = [];
+    async function loadOrganizationFields() {
+        if (organizationDepartments.length) return organizationDepartments;
+        const response = await fetch('/admin/employee-organization/departments', { headers: { Accept: 'application/json' } });
+        organizationDepartments = await response.json();
+        return organizationDepartments;
+    }
+
+    function renderOrganizationRows(form, departments, profile = {}) {
+        const root = form.querySelector('[data-employee-organization]');
+        if (!root) return;
+        const department = form.querySelector('[data-primary-department]');
+        const designation = form.querySelector('[data-primary-designation]');
+        department.innerHTML = '<option value="">Select department</option>' + departments.map((item) => `<option value="${item.id}">${item.name}</option>`).join('');
+        department.value = profile.primary_department_id || '';
+        const fillDesignations = () => { const selected = departments.find((item) => String(item.id) === String(department.value)); designation.innerHTML = '<option value="">Select designation</option>' + (selected?.designations || []).map((item) => `<option value="${item.id}">${item.name}</option>`).join(''); designation.value = profile.primary_designation_id || ''; };
+        department.onchange = () => { profile.primary_designation_id = ''; fillDesignations(); };
+        fillDesignations();
+        const assignments = root.querySelector('[data-assignment-list]');
+        const duties = root.querySelector('[data-employee-duty-list]');
+        assignments.innerHTML = ''; duties.innerHTML = '';
+        (profile.assignments || []).forEach((item) => addAssignmentRow(form, departments, item));
+        (profile.additional_responsibilities || []).forEach((item, index) => addDutyRow(form, item, index));
+        root.hidden = !profile.is_employee;
+    }
+
+    function addAssignmentRow(form, departments, item = {}) { const list = form.querySelector('[data-assignment-list]'); const index = list.children.length; const row = document.createElement('div'); row.className = 'people-assignment-row'; row.innerHTML = `<select name="assignments[${index}][department_id]"><option value="">Department</option>${departments.map((d) => `<option value="${d.id}" ${String(d.id) === String(item.department_id) ? 'selected' : ''}>${d.name}</option>`).join('')}</select><select name="assignments[${index}][designation_id]"><option value="${item.designation_id || ''}">Designation</option></select><input name="assignments[${index}][assignment_label]" value="${item.assignment_label || ''}" placeholder="Assignment label"><label><input type="hidden" name="assignments[${index}][is_active]" value="0"><input type="checkbox" name="assignments[${index}][is_active]" value="1" ${item.is_active === false ? '' : 'checked'}> Active</label><button type="button" data-remove-row>Remove</button>`; list.appendChild(row); const dept = row.querySelector('select'); const des = row.querySelectorAll('select')[1]; const sync = () => { const selected = departments.find((d) => String(d.id) === String(dept.value)); des.innerHTML = '<option value="">Designation</option>' + (selected?.designations || []).map((d) => `<option value="${d.id}">${d.name}</option>`).join(''); des.value = item.designation_id || ''; }; dept.addEventListener('change', sync); sync(); }
+    function addDutyRow(form, item = {}, index = null) { const list = form.querySelector('[data-employee-duty-list]'); const rowIndex = index ?? list.children.length; const row = document.createElement('div'); row.className = 'people-duty-row'; row.innerHTML = `<input name="additional_responsibilities[${rowIndex}][description]" value="${item.description || ''}" placeholder="Additional responsibility"><input type="number" name="additional_responsibilities[${rowIndex}][sort_order]" value="${item.sort_order ?? rowIndex}" min="0"><button type="button" data-remove-row>Remove</button>`; list.appendChild(row); }
+
+    function syncEmployeeOrganization(form, enabled) { const root = form.querySelector('[data-employee-organization]'); if (root) root.hidden = !enabled; }
+
     function rolePayload(id) {
         const payload = document.getElementById(`peopleRoleData${id}`);
 
@@ -119,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             syncRoleFields('add_people_profile');
             syncPermissionPanel(form);
+            loadOrganizationFields().then((departments) => renderOrganizationRows(form, departments, { is_employee: false }));
             openModal('addPeopleProfileModal');
         });
 
@@ -186,6 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             syncRoleFields('edit_people_profile');
             syncPermissionPanel(form);
+            loadOrganizationFields().then((departments) => renderOrganizationRows(form, departments, profile));
             openModal('editPeopleProfileModal');
         });
     });
@@ -203,6 +236,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         syncRoleFields(prefix);
         syncPermissionPanel(form);
+        form?.querySelector('[data-employee-toggle]')?.addEventListener('change', (event) => syncEmployeeOrganization(form, event.target.checked));
+        form?.querySelector('[data-add-assignment]')?.addEventListener('click', () => loadOrganizationFields().then((departments) => addAssignmentRow(form, departments)));
+        form?.querySelector('[data-add-employee-duty]')?.addEventListener('click', () => addDutyRow(form));
+    });
+
+    document.addEventListener('click', (event) => {
+        const remove = event.target.closest('[data-remove-row]');
+        if (remove) remove.closest('.people-assignment-row,.people-duty-row')?.remove();
     });
 
     document.getElementById('resetPeopleRoleBuilder')?.addEventListener('click', () => fillRoleBuilder());

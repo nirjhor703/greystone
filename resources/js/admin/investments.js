@@ -131,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const investorId = document.getElementById('settlement_investment_investor_id');
             const investorName = document.getElementById('settlementInvestorName');
             const payable = document.getElementById('settlementInvestorPayable');
+            const taxDeduction = document.getElementById('settlementInvestorTaxDeduction');
             const share = document.getElementById('settlementInvestorShare');
 
             if (investorId) {
@@ -143,6 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (payable) {
                 payable.textContent = `৳${button.dataset.payable || '0.00'}`;
+            }
+
+            if (taxDeduction) {
+                taxDeduction.textContent = `৳${button.dataset.taxDeduction || '0.00'}`;
             }
 
             if (share) {

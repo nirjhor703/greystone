@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const qcIssueSubmit = document.getElementById('confirmQcIssueButton');
     const resolveQcSubmit = document.getElementById('confirmResolveQcButton');
     const itemTemplate = document.getElementById('orderItemTemplate');
+    const products = JSON.parse(document.getElementById('orderProductData')?.textContent || '[]');
+    const vatEnabled = page.dataset.vatEnabled === '1';
+    const vatPercent = Number(page.dataset.vatPercent || 0);
     let toastTimer = null;
 
     const routeUrl = (template, id) => template.replace('__ID__', id);
@@ -138,17 +141,29 @@ document.addEventListener('DOMContentLoaded', () => {
             item.textContent = '';
         });
 
+        form?.querySelectorAll('[data-client-validation-error]').forEach((item) => item.remove());
+
         form?.querySelectorAll('input, select, textarea').forEach((item) => {
             item.classList.remove('brand-input-invalid');
         });
     }
 
     function displayErrors(form, errors) {
+        let firstInvalid = null;
+
         Object.entries(errors).forEach(([field, messages]) => {
             const message = Array.isArray(messages) ? messages[0] : messages;
 
             if (field.startsWith('items')) {
-                form.querySelector('.items_error').textContent = message;
+                const match = field.match(/^items\.(\d+)\.(\w+)/);
+                const row = match
+                    ? form.querySelectorAll('[data-order-item]')[Number(match[1])]
+                    : null;
+                const target = row?.querySelector(`[data-order-${match?.[2] || 'product'}]`)
+                    || row?.querySelector('[data-order-product-search]');
+
+                setValidationError(target, message);
+                firstInvalid ||= target;
                 return;
             }
 
@@ -160,11 +175,337 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             input?.classList.add('brand-input-invalid');
+            firstInvalid ||= input;
         });
+
+        scrollToInvalid(form, firstInvalid);
+    }
+
+    function setValidationError(field, message) {
+        if (!field) return;
+
+        const container = field.closest('.brand-form-field') || field.closest('[data-order-item]');
+        field.classList.add('brand-input-invalid');
+
+        let error = container?.querySelector('[data-client-validation-error]');
+        if (!error && container) {
+            error = document.createElement('small');
+            error.className = 'brand-field-error';
+            error.dataset.clientValidationError = 'true';
+            container.appendChild(error);
+        }
+        if (error) error.textContent = message;
+    }
+
+    function clearValidationError(field) {
+        const container = field?.closest('.brand-form-field') || field?.closest('[data-order-item]');
+        field?.classList.remove('brand-input-invalid');
+        const error = container?.querySelector('[data-client-validation-error]');
+        if (error) error.remove();
+    }
+
+    function scrollToInvalid(form, field) {
+        if (!field) return;
+
+        const modal = form?.closest('.brand-modal');
+        const body = modal?.querySelector('.brand-modal-body');
+        const header = modal?.querySelector('.brand-modal-header');
+
+        if (body) {
+            const bodyRect = body.getBoundingClientRect();
+            const fieldRect = field.getBoundingClientRect();
+            const headerOffset = (header?.getBoundingClientRect().height || 0) + 24;
+            const targetTop = body.scrollTop
+                + (fieldRect.top - bodyRect.top)
+                - headerOffset;
+
+            body.scrollTo({
+                top: Math.max(targetTop, 0),
+                behavior: 'smooth',
+            });
+        }
+
+        window.setTimeout(() => field.focus?.({ preventScroll: true }), 220);
+    }
+
+    function validateOrderForm(form, prefix) {
+        let firstInvalid = null;
+        const requiredMessages = {
+            customer_name: 'Please enter customer name.',
+            phone: 'Please enter phone number.',
+            brand_id: 'Please select a brand.',
+            district: 'Please enter district.',
+            area_thana: 'Please enter area / thana.',
+            road_no: 'Please enter road name / number / block.',
+            house_no: 'Please enter house name / number.',
+            full_address: 'Please enter full address.',
+        };
+        const invalidate = (field, message) => {
+            setValidationError(field, message);
+            firstInvalid ||= field;
+        };
+
+        form.querySelectorAll('[required]').forEach((field) => {
+            if (!field.value?.trim()) {
+                invalidate(field, requiredMessages[field.name] || 'Please complete this field.');
+            }
+        });
+
+        form.querySelectorAll('[data-order-item]').forEach((row) => {
+            const product = productById(row.querySelector('[data-order-product]')?.value);
+            const productSearch = row.querySelector('[data-order-product-search]');
+            const quantity = row.querySelector('[data-order-quantity]');
+            const color = row.querySelector('[data-order-color]');
+            const size = row.querySelector('[data-order-size]');
+            const variants = product?.variants || [];
+
+            if (!product) invalidate(productSearch, 'Please select a product.');
+            if (variants.length && !color?.value) invalidate(color, 'Please select a color.');
+            if (variants.length && !size?.value) invalidate(size, 'Please select a size.');
+            if (!quantity?.value || Number(quantity.value) < 1) invalidate(quantity, 'Quantity must be at least 1.');
+
+            const packagingInput = row.querySelector('[data-order-packaging-type]');
+            if (product?.packaging_type_enabled && !['normal', 'premium'].includes(packagingInput?.value)) {
+                invalidate(row.querySelector('[data-order-packaging-field]'), 'Please select a packaging option.');
+            }
+        });
+
+        scrollToInvalid(form, firstInvalid);
+        return !firstInvalid;
     }
 
     function itemList(prefix) {
         return document.getElementById(`${prefix}_order_items`);
+    }
+
+    function uniqueValues(values) {
+        return [...new Set(values.filter(Boolean))];
+    }
+
+    function productById(id) {
+        return products.find((product) => String(product.id) === String(id));
+    }
+
+    function productLabel(product) {
+        return `${product.brand_name || 'Brand'} - ${product.name}${product.code ? ` (${product.code})` : ''}`;
+    }
+
+    function fillSelect(select, values, placeholder) {
+        if (!select) return;
+
+        select.innerHTML = `<option value="">${placeholder}</option>`;
+
+        values.forEach((value) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+        });
+    }
+
+    function reservedStockForSelection(row, color, size) {
+        const reservedColor = row.dataset.reservedColor || '';
+        const reservedSize = row.dataset.reservedSize || '';
+
+        if (color && size && color === reservedColor && size === reservedSize) {
+            return Number(row.dataset.reservedQuantity || 0);
+        }
+
+        return 0;
+    }
+
+    function variantAvailableStock(row, variant) {
+        return Number(variant?.stock || 0)
+            + reservedStockForSelection(row, variant?.color || '', variant?.size || '');
+    }
+
+    function populateVariantFields(row, product, selectedColor = '', selectedSize = '') {
+        const colorSelect = row.querySelector('[data-order-color]');
+        const sizeSelect = row.querySelector('[data-order-size]');
+        const colors = uniqueValues((product?.variants || []).map((variant) => variant.color));
+
+        fillSelect(colorSelect, colors, 'Select color');
+
+        if (selectedColor && colors.includes(selectedColor)) {
+            colorSelect.value = selectedColor;
+        }
+
+        const sizes = uniqueValues(
+            (product?.variants || [])
+                .filter((variant) => !colorSelect.value || variant.color === colorSelect.value)
+                .map((variant) => {
+                    const stock = variantAvailableStock(row, variant);
+
+                    return `${variant.size}${stock > 0 ? ` (${stock} pcs)` : ' (0 pcs)'}`;
+                })
+        );
+
+        fillSelect(sizeSelect, sizes, 'Select size');
+
+        if (selectedSize) {
+            const option = Array.from(sizeSelect.options).find((item) => item.value.replace(/\s+\(\d+\s+pcs\)$/, '') === selectedSize);
+
+            if (option) {
+                sizeSelect.value = option.value;
+            }
+        }
+    }
+
+    function selectedSizeValue(row) {
+        return row.querySelector('[data-order-size]')?.value.replace(/\s+\(\d+\s+pcs\)$/, '') || '';
+    }
+
+    function selectedVariantStock(row) {
+        const product = productById(row.querySelector('[data-order-product]')?.value);
+        const color = row.querySelector('[data-order-color]')?.value || '';
+        const size = selectedSizeValue(row);
+
+        if (!product || !color || !size) {
+            return null;
+        }
+
+        const variant = (product.variants || []).find((item) => item.color === color && item.size === size);
+
+        return variant ? variantAvailableStock(row, variant) : null;
+    }
+
+    function enforceQuantityStock(row) {
+        const input = row.querySelector('[data-order-quantity]');
+        const error = row.querySelector('[data-order-quantity-error]');
+        const stock = selectedVariantStock(row);
+
+        if (!input) {
+            return;
+        }
+
+        input.removeAttribute('max');
+
+        if (error) {
+            error.textContent = '';
+        }
+
+        if (stock === null) {
+            return;
+        }
+
+        input.max = stock;
+
+        if (Number(input.value || 0) > stock) {
+            input.value = stock;
+
+            if (error) {
+                error.textContent = `Only ${stock} pcs available for this size. Quantity adjusted.`;
+            }
+        }
+    }
+
+    function setRowProduct(row, product, item = {}) {
+        row.querySelector('[data-order-product]').value = product?.id || '';
+        row.querySelector('[data-order-product-search]').value = product ? productLabel(product) : '';
+        row.querySelector('[data-order-unit-price]').value = item.unit_price || product?.price || 0;
+        const packagingField = row.querySelector('[data-order-packaging-field]');
+        const packagingInput = row.querySelector('[data-order-packaging-type]');
+        const packagingEnabled = Boolean(product?.packaging_type_enabled);
+
+        if (packagingField) packagingField.hidden = !packagingEnabled;
+        if (packagingInput) {
+            packagingInput.value = packagingEnabled && item.packaging_type === 'premium'
+                ? 'premium'
+                : 'normal';
+        }
+        row.querySelectorAll('[data-order-packaging]').forEach((button) => {
+            button.classList.toggle('is-selected', button.dataset.orderPackaging === packagingInput?.value);
+        });
+        const premiumLabel = row.querySelector('[data-order-premium-label]');
+        if (premiumLabel) premiumLabel.textContent = product?.packaging_tiers?.length ? 'Choose tier' : `+${money(product?.premium_packaging_charge || 0)}`;
+        const tierInput = row.querySelector('[data-order-packaging-tier-id]');
+        if (tierInput) tierInput.value = item.packaging_tier_id || '';
+        renderOrderPackagingTiers(row, product, item.packaging_tier_id);
+        populateVariantFields(row, product, item.color || '', item.size || '');
+        if (row.closest('[id$="_order_items"]')) {
+            const prefix = rowPrefix(row);
+            const brandSelect = document.getElementById(`${prefix}_brand_id`);
+
+            if (product?.brand_id && brandSelect && !brandSelect.value) {
+                brandSelect.value = product.brand_id;
+            }
+
+            updateOrderBill(prefix);
+        }
+    }
+
+    function renderOrderPackagingTiers(row, product, selectedId = '') {
+        const container = row.querySelector('[data-order-packaging-tiers]');
+        if (!container) return;
+        const tiers = Array.isArray(product?.packaging_tiers) ? product.packaging_tiers : [];
+        const quantity = Number(row.querySelector('[data-order-quantity]')?.value || 0);
+        const recommended = tiers.find((tier) => quantity >= Number(tier.min_pieces) && quantity <= Number(tier.max_pieces));
+        const activeId = selectedId || recommended?.id || '';
+        const tierInput = row.querySelector('[data-order-packaging-tier-id]');
+        if (tierInput && row.querySelector('[data-order-packaging-type]')?.value === 'premium') {
+            tierInput.value = activeId;
+        }
+        container.hidden = !tiers.length || row.querySelector('[data-order-packaging-type]')?.value !== 'premium';
+        container.innerHTML = tiers.map((tier) => {
+            const valid = quantity >= Number(tier.min_pieces) && quantity <= Number(tier.max_pieces);
+            return `<button type="button" class="order-packaging-tier ${String(tier.id) === String(activeId) ? 'is-selected' : ''}" data-order-packaging-tier="${tier.id}" ${valid ? '' : 'disabled'}><strong>${escapeHtml(tier.name)}</strong><small>${tier.min_pieces}–${tier.max_pieces} pcs · ${money(tier.price)}${tier.id === recommended?.id ? ' · Recommended' : ''}</small></button>`;
+        }).join('');
+    }
+
+    function rowPrefix(row) {
+        return row.closest('[id$="_order_items"]')?.id.startsWith('add_') ? 'add' : 'edit';
+    }
+
+    function renderProductResults(row, query) {
+        const results = row.querySelector('[data-order-product-results]');
+        const term = query.trim().toLowerCase();
+        const selectedBrand = document.getElementById(`${rowPrefix(row)}_brand_id`)?.value;
+
+        if (!results) return;
+
+        if (!term) {
+            results.hidden = true;
+            results.innerHTML = '';
+            return;
+        }
+
+        const matches = products
+            .filter((product) => !selectedBrand || String(product.brand_id) === String(selectedBrand))
+            .filter((product) => {
+                const haystack = `${product.name} ${product.code || ''} ${product.brand_name || ''}`.toLowerCase();
+                return haystack.includes(term);
+            })
+            .slice(0, 8);
+
+        results.innerHTML = matches.length
+            ? matches.map((product) => `
+                <button type="button" data-select-order-product="${product.id}">
+                    <strong>${escapeHtml(product.name)}</strong>
+                    <span>${escapeHtml(product.brand_name || '-')} · ${escapeHtml(product.code || 'No code')} · ${money(product.price)}</span>
+                </button>
+            `).join('')
+            : '<p>No product found</p>';
+        results.hidden = false;
+        highlightProductResult(results, 0);
+    }
+
+    function productResultButtons(results) {
+        return Array.from(results?.querySelectorAll('[data-select-order-product]') || []);
+    }
+
+    function highlightProductResult(results, index) {
+        const buttons = productResultButtons(results);
+
+        buttons.forEach((button, buttonIndex) => {
+            const active = buttonIndex === index;
+            button.classList.toggle('is-highlighted', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+
+        results.dataset.highlightedIndex = String(index);
+        buttons[index]?.scrollIntoView({
+            block: 'nearest',
+        });
     }
 
     function addItemRow(prefix, item = {}) {
@@ -176,14 +517,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fragment = itemTemplate.content.cloneNode(true);
         const row = fragment.querySelector('[data-order-item]');
+        const product = item.product_id ? productById(item.product_id) : null;
 
-        row.querySelector('[data-order-product]').value = item.product_id || '';
-        row.querySelector('[data-order-color]').value = item.color || '';
-        row.querySelector('[data-order-size]').value = item.size || '';
+        row.dataset.reservedColor = item.color || '';
+        row.dataset.reservedSize = item.size || '';
+        row.dataset.reservedQuantity = item.quantity || 0;
+        setRowProduct(row, product, item);
         row.querySelector('[data-order-quantity]').value = item.quantity || 1;
-        row.querySelector('[data-order-unit-price]').value = item.unit_price || 0;
+        row.querySelector('[data-order-unit-price]').value = item.unit_price || product?.price || 0;
 
         list.appendChild(fragment);
+        updateOrderBill(prefix);
     }
 
     function resetItemRows(prefix) {
@@ -201,9 +545,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .map((row) => ({
                 product_id: row.querySelector('[data-order-product]')?.value || '',
                 color: row.querySelector('[data-order-color]')?.value || '',
-                size: row.querySelector('[data-order-size]')?.value || '',
+                size: selectedSizeValue(row),
                 quantity: row.querySelector('[data-order-quantity]')?.value || '1',
                 unit_price: row.querySelector('[data-order-unit-price]')?.value || '0',
+                packaging_type: row.querySelector('[data-order-packaging-type]')?.value || 'normal',
+                packaging_tier_id: row.querySelector('[data-order-packaging-tier-id]')?.value || '',
             }))
             .filter((item) => item.product_id);
     }
@@ -226,6 +572,122 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
+    function deliveryCharge(prefix) {
+        const paymentStatus = document.getElementById(`${prefix}_payment_status`)?.value;
+        const paidInput = document.getElementById(`${prefix}_delivery_charge_paid`);
+
+        if (paymentStatus === 'Delivery Charge Paid') {
+            return Number(paidInput?.value || 0);
+        }
+
+        return document.getElementById(`${prefix}_delivery_area`)?.value === 'outside_dhaka' ? 130 : 80;
+    }
+
+    function paidAmount(prefix, grandTotal) {
+        const paymentStatus = document.getElementById(`${prefix}_payment_status`)?.value;
+
+        if (paymentStatus === 'Paid') {
+            return grandTotal;
+        }
+
+        if (paymentStatus === 'Delivery Charge Paid') {
+            return Math.min(deliveryCharge(prefix), grandTotal);
+        }
+
+        return 0;
+    }
+
+    function updateOrderBill(prefix) {
+        const rows = Array.from(itemList(prefix)?.querySelectorAll('[data-order-item]') || []);
+        const preview = document.getElementById(`${prefix}_order_preview_items`);
+        const manualDiscount = Number(document.getElementById(`${prefix}_manual_discount_amount`)?.value || 0);
+        let packagingTotal = 0;
+        const subtotal = rows.reduce((total, row) => {
+            enforceQuantityStock(row);
+            const quantity = Number(row.querySelector('[data-order-quantity]')?.value || 0);
+            const unitPrice = Number(row.querySelector('[data-order-unit-price]')?.value || 0);
+            const lineTotal = quantity * unitPrice;
+            const product = productById(row.querySelector('[data-order-product]')?.value);
+            const packagingType = row.querySelector('[data-order-packaging-type]')?.value || 'normal';
+
+            if (packagingType === 'premium' && product?.packaging_type_enabled) {
+                const tier = (product.packaging_tiers || []).find((item) => String(item.id) === String(row.querySelector('[data-order-packaging-tier-id]')?.value));
+                packagingTotal += Number(tier?.price || 0);
+            }
+            const lineTotalInput = row.querySelector('[data-order-line-total]');
+
+            if (lineTotalInput) {
+                lineTotalInput.value = money(lineTotal);
+            }
+
+            return total + lineTotal;
+        }, 0);
+        const delivery = deliveryCharge(prefix);
+        const taxable = Math.max(subtotal + packagingTotal + delivery - manualDiscount, 0);
+        const vat = vatEnabled ? taxable * vatPercent / 100 : 0;
+        const grandTotal = Math.max(taxable + vat, 0);
+        const paid = paidAmount(prefix, grandTotal);
+        const due = Math.max(grandTotal - paid, 0);
+
+        if (preview) {
+            const selected = readItemRows(prefix);
+
+            preview.innerHTML = selected.length
+                ? selected.map((item) => {
+                    const product = productById(item.product_id);
+                    const total = Number(item.quantity || 0) * Number(item.unit_price || 0);
+                    const tier = (product?.packaging_tiers || []).find((candidate) => String(candidate.id) === String(item.packaging_tier_id));
+                    const packagingCharge = item.packaging_type === 'premium' ? Number(tier?.price || 0) : 0;
+
+                    return `
+                        <div class="order-preview-item">
+                            <span>${escapeHtml(product ? productLabel(product) : 'Product')}</span>
+                            <small>${escapeHtml(item.color || '-')} / ${escapeHtml(item.size || '-')} × ${escapeHtml(item.quantity)}${item.packaging_type === 'premium' ? ` · Premium Packaging · ${escapeHtml(tier?.name || 'Selected tier')} · ${money(packagingCharge)}` : ''}</small>
+                            <strong>${money(total)}</strong>
+                        </div>
+                    `;
+                }).join('')
+                : '<p class="order-preview-empty">No items selected yet.</p>';
+        }
+
+        const values = {
+            subtotal,
+            packaging: packagingTotal,
+            delivery,
+            discount: manualDiscount,
+            vat,
+            total: grandTotal,
+            paid,
+            due,
+        };
+
+        Object.entries(values).forEach(([key, value]) => {
+            const target = document.getElementById(`${prefix}_bill_${key}`);
+            if (target) {
+                target.textContent = `${key === 'discount' ? '-' : ''}${money(value)}`;
+            }
+        });
+    }
+
+    function syncDeliveryChargePaidField(prefix) {
+        const paymentStatus = document.getElementById(`${prefix}_payment_status`)?.value;
+        const wrap = document.getElementById(`${prefix}_delivery_charge_paid_wrap`);
+        const input = document.getElementById(`${prefix}_delivery_charge_paid`);
+        const shouldShow = paymentStatus === 'Delivery Charge Paid';
+
+        if (wrap) {
+            wrap.hidden = !shouldShow;
+        }
+
+        if (input) {
+            input.required = shouldShow;
+
+            if (!shouldShow) {
+                input.value = '';
+            }
+        }
+    }
+
     function syncAddress(prefix) {
         const house = document.getElementById(`${prefix}_house_no`)?.value.trim();
         const road = document.getElementById(`${prefix}_road_no`)?.value.trim();
@@ -235,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const parts = [];
 
         if (house) parts.push(`House- ${house}`);
-        if (road) parts.push(`Road- ${road}`);
+        if (road) parts.push(`Road/Block- ${road}`);
         if (area) parts.push(area);
         if (district) parts.push(district);
         if (output) output.value = parts.join(', ');
@@ -276,6 +738,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'order_note',
             'status',
             'payment_status',
+            'delivery_charge_paid',
+            'manual_discount_amount',
             'order_channel',
             'order_source',
             'source_note',
@@ -303,6 +767,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         handleDeliveryArea(prefix);
+        syncDeliveryChargePaidField(prefix);
+        updateOrderBill(prefix);
 
         if (prefix === 'edit') {
             fillEditQcPanel(order);
@@ -375,7 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 : `
                     <button
                         type="button"
-                        class="brand-action-button edit qcPassedButton"
+                        class="brand-action-button edit qc-pass qcPassedButton"
                         data-id="${order.id}"
                     >
                         QC Passed
@@ -464,7 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         order.qc_by
                             ? `
                                 <small class="order-table-muted">
-                                    ${escapeHtml(order.qc_by)}
+                                    by ${escapeHtml(order.qc_by)}
                                 </small>
                             `
                             : ''
@@ -601,6 +1067,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ? `<p class="order-activity-note">${escapeHtml(log.note)}</p>`
                                 : ''
                         }
+                        ${
+                            log.issue_image_url
+                                ? `
+                                    <a
+                                        class="order-activity-image-link"
+                                        href="${escapeHtml(log.issue_image_url)}"
+                                        target="_blank"
+                                        rel="noopener"
+                                    >
+                                        <span>🖼️</span>
+                                        View issue photo
+                                    </a>
+                                `
+                                : ''
+                        }
                     </div>
                     <time>${escapeHtml(log.created_at || '-')}</time>
                 </article>
@@ -613,6 +1094,8 @@ document.addEventListener('DOMContentLoaded', () => {
         clearErrors(addForm);
         resetItemRows('add');
         handleDeliveryArea('add');
+        syncDeliveryChargePaidField('add');
+        updateOrderBill('add');
         openModal('addOrderModal');
     });
 
@@ -636,11 +1119,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (addItemButton) {
             addItemRow(addItemButton.dataset.addOrderItem);
+            updateOrderBill(addItemButton.dataset.addOrderItem);
             return;
         }
 
         if (removeItemButton) {
-            removeItemButton.closest('[data-order-item]')?.remove();
+            const row = removeItemButton.closest('[data-order-item]');
+            const prefix = rowPrefix(row);
+            row?.remove();
+            updateOrderBill(prefix);
+            return;
+        }
+
+        const packagingButton = event.target.closest('[data-order-packaging]');
+        if (packagingButton) {
+            const row = packagingButton.closest('[data-order-item]');
+            const input = row?.querySelector('[data-order-packaging-type]');
+
+            if (input) {
+                input.value = packagingButton.dataset.orderPackaging === 'premium'
+                    ? 'premium'
+                    : 'normal';
+                if (input.value === 'normal') {
+                    row.querySelector('[data-order-packaging-tier-id]').value = '';
+                }
+                row.querySelectorAll('[data-order-packaging]').forEach((button) => {
+                    button.classList.toggle('is-selected', button === packagingButton);
+                });
+                renderOrderPackagingTiers(row, productById(row.querySelector('[data-order-product]')?.value));
+                updateOrderBill(rowPrefix(row));
+            }
+            return;
+        }
+
+        const tierButton = event.target.closest('[data-order-packaging-tier]');
+        if (tierButton) {
+            const row = tierButton.closest('[data-order-item]');
+            row.querySelector('[data-order-packaging-tier-id]').value = tierButton.dataset.orderPackagingTier;
+            row.querySelectorAll('[data-order-packaging-tier]').forEach((button) => button.classList.toggle('is-selected', button === tierButton));
+            updateOrderBill(rowPrefix(row));
+            return;
+        }
+
+        const productResult = event.target.closest('[data-select-order-product]');
+
+        if (productResult) {
+            const row = productResult.closest('[data-order-item]');
+            const product = productById(productResult.dataset.selectOrderProduct);
+            setRowProduct(row, product);
+            row.querySelector('[data-order-product-results]').hidden = true;
             return;
         }
 
@@ -710,6 +1237,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('qc_issue_order_id').value = qcIssueButton.dataset.id;
             document.getElementById('qcIssueInvoice').textContent = qcIssueButton.dataset.invoice;
             document.getElementById('qcIssueNote').value = '';
+            document.getElementById('qcIssueImage').value = '';
             openModal('qcIssueModal');
         }
 
@@ -759,37 +1287,114 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     page.addEventListener('change', (event) => {
-        const productSelect = event.target.closest('[data-order-product]');
+        clearValidationError(event.target);
         const deliverySelect = event.target.closest('[id$="_delivery_area"]');
-
-        if (productSelect) {
-            const selected = productSelect.selectedOptions[0];
-            const row = productSelect.closest('[data-order-item]');
-            const priceInput = row?.querySelector('[data-order-unit-price]');
-
-            if (selected?.dataset.price && priceInput) {
-                priceInput.value = selected.dataset.price;
-            }
-        }
+        const paymentStatusSelect = event.target.closest('[id$="_payment_status"]');
+        const colorSelect = event.target.closest('[data-order-color]');
+        const sizeSelect = event.target.closest('[data-order-size]');
 
         if (deliverySelect) {
-            handleDeliveryArea(deliverySelect.id.startsWith('add_') ? 'add' : 'edit');
+            const prefix = deliverySelect.id.startsWith('add_') ? 'add' : 'edit';
+            handleDeliveryArea(prefix);
+            updateOrderBill(prefix);
+        }
+
+        if (paymentStatusSelect) {
+            const prefix = paymentStatusSelect.id.startsWith('add_') ? 'add' : 'edit';
+            syncDeliveryChargePaidField(prefix);
+            updateOrderBill(prefix);
+        }
+
+        if (colorSelect) {
+            const row = colorSelect.closest('[data-order-item]');
+            populateVariantFields(row, productById(row.querySelector('[data-order-product]')?.value), colorSelect.value);
+            updateOrderBill(rowPrefix(row));
+        }
+
+        if (sizeSelect) {
+            updateOrderBill(rowPrefix(sizeSelect.closest('[data-order-item]')));
         }
     });
 
     page.addEventListener('input', (event) => {
+        clearValidationError(event.target);
+        const productSearch = event.target.closest('[data-order-product-search]');
+        const quantityOrPrice = event.target.closest('[data-order-quantity], [data-order-unit-price]');
+        const billInput = event.target.closest('[id$="_manual_discount_amount"], [id$="_delivery_charge_paid"]');
         const addressInput = event.target.closest(
             '[id$="_house_no"], [id$="_road_no"], [id$="_area_thana"], [id$="_district"]'
         );
+
+        if (productSearch) {
+            const row = productSearch.closest('[data-order-item]');
+            row.querySelector('[data-order-product]').value = '';
+            renderProductResults(row, productSearch.value);
+            updateOrderBill(rowPrefix(row));
+        }
+
+        if (quantityOrPrice) {
+            const row = quantityOrPrice.closest('[data-order-item]');
+            renderOrderPackagingTiers(row, productById(row.querySelector('[data-order-product]')?.value), row.querySelector('[data-order-packaging-tier-id]')?.value);
+            updateOrderBill(rowPrefix(quantityOrPrice.closest('[data-order-item]')));
+        }
+
+        if (billInput) {
+            updateOrderBill(billInput.id.startsWith('add_') ? 'add' : 'edit');
+        }
 
         if (addressInput) {
             syncAddress(addressInput.id.startsWith('add_') ? 'add' : 'edit');
         }
     });
 
+    page.addEventListener('keydown', (event) => {
+        const productSearch = event.target.closest('[data-order-product-search]');
+
+        if (!productSearch) {
+            return;
+        }
+
+        const row = productSearch.closest('[data-order-item]');
+        const results = row.querySelector('[data-order-product-results]');
+        const buttons = productResultButtons(results);
+
+        if (results.hidden || !buttons.length) {
+            return;
+        }
+
+        if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(event.key)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const currentIndex = Number(results.dataset.highlightedIndex || 0);
+
+        if (event.key === 'ArrowDown') {
+            highlightProductResult(results, Math.min(currentIndex + 1, buttons.length - 1));
+        }
+
+        if (event.key === 'ArrowUp') {
+            highlightProductResult(results, Math.max(currentIndex - 1, 0));
+        }
+
+        if (event.key === 'Escape') {
+            results.hidden = true;
+        }
+
+        if (event.key === 'Enter') {
+            const selected = buttons[Number(results.dataset.highlightedIndex || 0)] || buttons[0];
+            selected?.click();
+        }
+    });
+
     addForm?.addEventListener('submit', async (event) => {
         event.preventDefault();
         clearErrors(addForm);
+        if (!validateOrderForm(addForm, 'add')) {
+            return;
+        }
         setLoading(addSubmit, true, 'Adding...');
 
         try {
@@ -820,6 +1425,9 @@ document.addEventListener('DOMContentLoaded', () => {
     editForm?.addEventListener('submit', async (event) => {
         event.preventDefault();
         clearErrors(editForm);
+        if (!validateOrderForm(editForm, 'edit')) {
+            return;
+        }
         const id = document.getElementById('edit_order_id').value;
         setLoading(editSubmit, true, 'Updating...');
 
@@ -897,6 +1505,7 @@ document.addEventListener('DOMContentLoaded', () => {
     qcIssueSubmit?.addEventListener('click', async () => {
         const id = document.getElementById('qc_issue_order_id').value;
         const note = document.getElementById('qcIssueNote').value.trim();
+        const issueImage = document.getElementById('qcIssueImage')?.files?.[0];
 
         if (!note) {
             showToast('QC issue note is required.', 'error');
@@ -906,14 +1515,20 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoading(qcIssueSubmit, true, 'Saving...');
 
         try {
+            const body = new FormData();
+            body.append('note', note);
+
+            if (issueImage) {
+                body.append('issue_image', issueImage);
+            }
+
             const response = await fetch(routeUrl(page.dataset.qcIssueUrl, id), {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
                     Accept: 'application/json',
                 },
-                body: JSON.stringify({ note }),
+                body,
             });
             const data = await parseResponse(response);
             syncRow(data.order);

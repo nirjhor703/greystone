@@ -11,8 +11,39 @@
     $paymentStatuses = [
         App\Models\Order::PAYMENT_UNPAID,
         App\Models\Order::PAYMENT_PAID,
+        App\Models\Order::PAYMENT_DELIVERY_CHARGE_PAID,
     ];
+
+    $orderProductData = $products->map(fn ($product) => [
+        'id' => $product->id,
+        'brand_id' => $product->brand_id,
+        'brand_name' => $product->brand?->name,
+        'name' => $product->name,
+        'code' => $product->product_code,
+        'price' => (float) ($product->sale_price ?: $product->regular_price),
+        'packaging_type_enabled' => (bool) $product->packaging_type_enabled,
+        'premium_packaging_charge' => (float) $product->premium_packaging_charge,
+        'packaging_tiers' => App\Models\PremiumPackagingTier::query()->where('product_id', $product->premium_packaging_tier_override ? $product->id : null)->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get()->map(fn ($tier) => [
+            'id' => $tier->id,
+            'name' => $tier->name,
+            'min_pieces' => $tier->min_pieces,
+            'max_pieces' => $tier->max_pieces,
+            'price' => (float) $tier->price,
+        ])->values(),
+        'variants' => $product->variants
+            ->where('status', true)
+            ->map(fn ($variant) => [
+                'color' => $variant->color,
+                'size' => $variant->size,
+                'stock' => (int) $variant->stock_quantity,
+            ])
+            ->values(),
+    ])->values();
 @endphp
+
+<script type="application/json" id="orderProductData">
+    @json($orderProductData)
+</script>
 
 <div
     id="orderCrudPage"
@@ -26,6 +57,8 @@
     data-resolve-qc-url="{{ route('admin.orders.resolve-qc-issue', '__ID__') }}"
     data-steadfast-url="{{ route('admin.orders.steadfast', '__ID__') }}"
     data-invoice-url="{{ route('admin.orders.invoice', '__ID__') }}"
+    data-vat-enabled="{{ $vatEnabled ? '1' : '0' }}"
+    data-vat-percent="{{ $vatPercent }}"
 >
     <section class="brand-page-card">
         <div class="brand-page-header">
@@ -219,7 +252,7 @@
                                 </span>
                                 @if ($order->qc_by_user_id)
                                     <small class="order-table-muted">
-                                        {{ $order->qcBy?->name }}
+                                        by {{ $order->qcBy?->name }}
                                     </small>
                                 @endif
                             </td>
@@ -270,7 +303,7 @@
                                             @else
                                                 <button
                                                     type="button"
-                                                    class="brand-action-button edit qcPassedButton"
+                                                    class="brand-action-button edit qc-pass qcPassedButton"
                                                     data-id="{{ $order->id }}"
                                                 >
                                                     QC Passed
@@ -377,7 +410,7 @@
                                 <div class="brand-form-grid">
                                     <div class="brand-form-field">
                                         <label>Order Channel <span>*</span></label>
-                                        <select name="order_channel" id="{{ $prefix }}_order_channel">
+                                        <select name="order_channel" id="{{ $prefix }}_order_channel" required>
                                             @foreach ($orderChannels as $key => $label)
                                                 <option value="{{ $key }}">{{ $label }}</option>
                                             @endforeach
@@ -387,7 +420,7 @@
 
                                     <div class="brand-form-field">
                                         <label>Order Source <span>*</span></label>
-                                        <select name="order_source" id="{{ $prefix }}_order_source">
+                                        <select name="order_source" id="{{ $prefix }}_order_source" required>
                                             @foreach ($orderSources as $key => $label)
                                                 <option value="{{ $key }}" @selected($prefix === 'add' && $key === App\Models\Order::SOURCE_ADMIN_MANUAL)>{{ $label }}</option>
                                             @endforeach
@@ -403,7 +436,7 @@
 
                                     <div class="brand-form-field">
                                         <label>Brand <span>*</span></label>
-                                        <select name="brand_id" id="{{ $prefix }}_brand_id">
+                                        <select name="brand_id" id="{{ $prefix }}_brand_id" required>
                                             <option value="">Select Brand</option>
                                             @foreach ($brands as $brand)
                                                 <option value="{{ $brand->id }}">
@@ -416,13 +449,13 @@
 
                                     <div class="brand-form-field">
                                         <label>Customer Name <span>*</span></label>
-                                        <input type="text" name="customer_name" id="{{ $prefix }}_customer_name" maxlength="100">
+                                        <input type="text" name="customer_name" id="{{ $prefix }}_customer_name" maxlength="100" required>
                                         <small class="brand-field-error customer_name_error"></small>
                                     </div>
 
                                     <div class="brand-form-field">
                                         <label>Phone <span>*</span></label>
-                                        <input type="text" name="phone" id="{{ $prefix }}_phone" maxlength="11">
+                                        <input type="text" name="phone" id="{{ $prefix }}_phone" maxlength="11" required>
                                         <small class="brand-field-error phone_error"></small>
                                     </div>
 
@@ -440,7 +473,7 @@
 
                                     <div class="brand-form-field">
                                         <label>Order Status <span>*</span></label>
-                                        <select name="status" id="{{ $prefix }}_status">
+                                        <select name="status" id="{{ $prefix }}_status" required>
                                             @foreach ($statuses as $status)
                                                 <option value="{{ $status }}">{{ $status }}</option>
                                             @endforeach
@@ -450,12 +483,26 @@
 
                                     <div class="brand-form-field">
                                         <label>Payment Status <span>*</span></label>
-                                        <select name="payment_status" id="{{ $prefix }}_payment_status">
+                                        <select name="payment_status" id="{{ $prefix }}_payment_status" required>
                                             @foreach ($paymentStatuses as $status)
                                                 <option value="{{ $status }}">{{ $status }}</option>
                                             @endforeach
                                         </select>
                                         <small class="brand-field-error payment_status_error"></small>
+                                    </div>
+
+                                    <div class="brand-form-field" id="{{ $prefix }}_delivery_charge_paid_wrap" hidden>
+                                        <label>Custom Delivery Charge Paid <span>*</span></label>
+                                        <input
+                                            type="number"
+                                            name="delivery_charge_paid"
+                                            id="{{ $prefix }}_delivery_charge_paid"
+                                            min="0"
+                                            step="0.01"
+                                            inputmode="decimal"
+                                            placeholder="Delivery charge for this order"
+                                        >
+                                        <small class="brand-field-error delivery_charge_paid_error"></small>
                                     </div>
                                 </div>
                             </section>
@@ -492,7 +539,7 @@
                                     <div class="order-qc-actions">
                                         <button
                                             type="button"
-                                            class="brand-action-button edit qcPassedButton"
+                                            class="brand-action-button edit qc-pass qcPassedButton"
                                             id="editQcPassedButton"
                                         >
                                             QC Passed
@@ -530,7 +577,7 @@
                                 <div class="brand-form-grid">
                                     <div class="brand-form-field">
                                         <label>Delivery Area <span>*</span></label>
-                                        <select name="delivery_area" id="{{ $prefix }}_delivery_area">
+                                        <select name="delivery_area" id="{{ $prefix }}_delivery_area" required>
                                             <option value="inside_dhaka">Inside Dhaka - ৳80</option>
                                             <option value="outside_dhaka">Outside Dhaka - ৳130</option>
                                         </select>
@@ -539,31 +586,31 @@
 
                                     <div class="brand-form-field">
                                         <label>District <span>*</span></label>
-                                        <input type="text" name="district" id="{{ $prefix }}_district" maxlength="100">
+                                        <input type="text" name="district" id="{{ $prefix }}_district" maxlength="100" required>
                                         <small class="brand-field-error district_error"></small>
                                     </div>
 
                                     <div class="brand-form-field">
                                         <label>Area / Thana <span>*</span></label>
-                                        <input type="text" name="area_thana" id="{{ $prefix }}_area_thana" maxlength="150">
+                                        <input type="text" name="area_thana" id="{{ $prefix }}_area_thana" maxlength="150" required>
                                         <small class="brand-field-error area_thana_error"></small>
                                     </div>
 
                                     <div class="brand-form-field">
-                                        <label>Road Number <span>*</span></label>
-                                        <input type="text" name="road_no" id="{{ $prefix }}_road_no" maxlength="100">
+                                        <label>Road Name / Number / Block <span>*</span></label>
+                                        <input type="text" name="road_no" id="{{ $prefix }}_road_no" maxlength="100" placeholder="Example: Road 12 / Block B" required>
                                         <small class="brand-field-error road_no_error"></small>
                                     </div>
 
                                     <div class="brand-form-field">
-                                        <label>House Number <span>*</span></label>
-                                        <input type="text" name="house_no" id="{{ $prefix }}_house_no" maxlength="100">
+                                        <label>House Name / Number <span>*</span></label>
+                                        <input type="text" name="house_no" id="{{ $prefix }}_house_no" maxlength="100" placeholder="Example: House 24 / Rose Villa" required>
                                         <small class="brand-field-error house_no_error"></small>
                                     </div>
 
                                     <div class="brand-form-field brand-full-field">
                                         <label>Full Address <span>*</span></label>
-                                        <textarea name="full_address" id="{{ $prefix }}_full_address" rows="3"></textarea>
+                                        <textarea name="full_address" id="{{ $prefix }}_full_address" rows="3" required></textarea>
                                         <small class="brand-field-error full_address_error"></small>
                                     </div>
 
@@ -595,6 +642,69 @@
                                 </button>
 
                                 <small class="brand-field-error items_error"></small>
+
+                                <div class="order-bill-preview" data-order-bill-preview="{{ $prefix }}">
+                                    <div class="order-bill-header">
+                                        <div>
+                                            <h5>Order Preview</h5>
+                                            <p>Selected items and bill breakdown.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="order-preview-items" id="{{ $prefix }}_order_preview_items">
+                                        <p class="order-preview-empty">No items selected yet.</p>
+                                    </div>
+
+                                    <div class="brand-form-field order-manual-discount-field">
+                                        <label>Manual Discount</label>
+                                        <input
+                                            type="number"
+                                            name="manual_discount_amount"
+                                            id="{{ $prefix }}_manual_discount_amount"
+                                            min="0"
+                                            step="0.01"
+                                            inputmode="decimal"
+                                            value="0"
+                                            placeholder="Discount amount"
+                                        >
+                                        <small class="brand-field-error manual_discount_amount_error"></small>
+                                    </div>
+
+                                    <div class="order-bill-lines">
+                                        <div>
+                                            <span>Subtotal</span>
+                                            <strong id="{{ $prefix }}_bill_subtotal">৳0.00</strong>
+                                        </div>
+                                        <div>
+                                            <span>Premium Packaging</span>
+                                            <strong id="{{ $prefix }}_bill_packaging">৳0.00</strong>
+                                        </div>
+                                        <div>
+                                            <span>Delivery Charge</span>
+                                            <strong id="{{ $prefix }}_bill_delivery">৳0.00</strong>
+                                        </div>
+                                        <div>
+                                            <span>Manual Discount</span>
+                                            <strong id="{{ $prefix }}_bill_discount">-৳0.00</strong>
+                                        </div>
+                                        <div>
+                                            <span>VAT</span>
+                                            <strong id="{{ $prefix }}_bill_vat">৳0.00</strong>
+                                        </div>
+                                        <div class="grand">
+                                            <span>Grand Total</span>
+                                            <strong id="{{ $prefix }}_bill_total">৳0.00</strong>
+                                        </div>
+                                        <div>
+                                            <span>Paid</span>
+                                            <strong id="{{ $prefix }}_bill_paid">৳0.00</strong>
+                                        </div>
+                                        <div>
+                                            <span>Due</span>
+                                            <strong id="{{ $prefix }}_bill_due">৳0.00</strong>
+                                        </div>
+                                    </div>
+                                </div>
                             </section>
                         </div>
                     </div>
@@ -691,6 +801,15 @@
                 maxlength="1000"
                 placeholder="Example: Wrong size found, stock mismatch, product defect..."
             ></textarea>
+            <label class="order-qc-image-field">
+                <span>Issue Photo (optional)</span>
+                <input
+                    type="file"
+                    id="qcIssueImage"
+                    accept="image/jpeg,image/png,image/webp"
+                >
+                <small>Kaporer defect/issue proof hishabe photo rakhte parben.</small>
+            </label>
             <div class="brand-delete-actions">
                 <button type="button" class="brand-secondary-button" data-close-modal="qcIssueModal">
                     No, Cancel
@@ -755,36 +874,60 @@
     <template id="orderItemTemplate">
         <article class="order-item-editor" data-order-item>
             <div class="brand-form-grid">
-                <div class="brand-form-field">
-                    <label>Product <span>*</span></label>
-                    <select data-order-product>
-                        <option value="">Select Product</option>
-                        @foreach ($products as $product)
-                            <option
-                                value="{{ $product->id }}"
-                                data-brand-id="{{ $product->brand_id }}"
-                                data-price="{{ $product->sale_price ?: $product->regular_price }}"
-                            >
-                                {{ $product->brand?->name }} - {{ $product->name }}
-                            </option>
-                        @endforeach
-                    </select>
+                <div class="brand-form-field order-product-search-field">
+                    <label>Product Search <span>*</span></label>
+                    <div class="order-product-search-shell">
+                        <span>⌕</span>
+                        <input
+                            type="search"
+                            data-order-product-search
+                            placeholder="Search by product name or code"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <input type="hidden" data-order-product>
+                    <div class="order-product-results" data-order-product-results hidden></div>
                 </div>
                 <div class="brand-form-field">
                     <label>Color</label>
-                    <input type="text" data-order-color maxlength="100">
+                    <select data-order-color>
+                        <option value="">Select color</option>
+                    </select>
                 </div>
                 <div class="brand-form-field">
                     <label>Size</label>
-                    <input type="text" data-order-size maxlength="20">
+                    <select data-order-size>
+                        <option value="">Select size</option>
+                    </select>
                 </div>
                 <div class="brand-form-field">
                     <label>Quantity <span>*</span></label>
-                    <input type="text" data-order-quantity value="1">
+                    <input type="number" data-order-quantity value="1" min="1" step="1">
+                    <small class="brand-field-error" data-order-quantity-error></small>
                 </div>
                 <div class="brand-form-field">
                     <label>Unit Price <span>*</span></label>
-                    <input type="text" data-order-unit-price value="0">
+                    <input type="number" data-order-unit-price value="0" min="0" step="0.01">
+                </div>
+                <div class="brand-form-field">
+                    <label>Line Total</label>
+                    <input type="text" data-order-line-total value="৳0.00" readonly>
+                </div>
+                <div class="brand-form-field order-packaging-field" data-order-packaging-field hidden>
+                    <label>Packaging</label>
+                    <div class="order-packaging-options">
+                        <button type="button" class="order-packaging-option is-selected" data-order-packaging="normal">
+                            <strong>Normal</strong>
+                            <small>FREE</small>
+                        </button>
+                        <button type="button" class="order-packaging-option" data-order-packaging="premium">
+                            <strong>Premium</strong>
+                            <small data-order-premium-label>Choose tier</small>
+                        </button>
+                    </div>
+                    <input type="hidden" data-order-packaging-type value="normal">
+                    <input type="hidden" data-order-packaging-tier-id value="">
+                    <div class="order-packaging-tiers" data-order-packaging-tiers hidden></div>
                 </div>
             </div>
             <button type="button" class="brand-action-button delete" data-remove-order-item>

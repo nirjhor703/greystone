@@ -17,6 +17,19 @@
     </section>
 
     <section>
+        <h4>Employee Organization</h4>
+        <label class="people-profile-toggle people-profile-wide"><input id="{{ $formPrefix }}_is_employee" type="checkbox" name="is_employee" value="1" data-employee-toggle> Is Employee</label>
+        <div class="people-organization-fields" data-employee-organization hidden>
+            <div class="people-profile-fields">
+                <label>Primary Department<select id="{{ $formPrefix }}_primary_department_id" name="primary_department_id" data-primary-department><option value="">Select department</option></select></label>
+                <label>Primary Designation<select id="{{ $formPrefix }}_primary_designation_id" name="primary_designation_id" data-primary-designation><option value="">Select designation</option></select></label>
+            </div>
+            <div class="people-organization-subsection"><strong>Additional Assignments</strong><div data-assignment-list></div><button type="button" class="brand-secondary-button" data-add-assignment>＋ Add Assignment</button></div>
+            <div class="people-organization-subsection"><strong>Additional Employee Duties</strong><div data-employee-duty-list></div><button type="button" class="brand-secondary-button" data-add-employee-duty>＋ Add Responsibility</button></div>
+        </div>
+    </section>
+
+    <section>
         <h4>Permissions</h4>
         <div class="people-profile-fields">
             <input id="{{ $formPrefix }}_user_id" type="hidden" name="user_id" value="{{ old('user_id', $profile?->user_id) }}">

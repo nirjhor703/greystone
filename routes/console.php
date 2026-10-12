@@ -11,10 +11,49 @@ use App\Models\Product;
 use App\Models\User;
 use App\Services\AdminNotificationService;
 use App\Services\SteadfastCourierService;
+use App\Services\MediaOptimizationService;
+use App\Models\ProductImage;
+use Illuminate\Support\Facades\Log;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('media:optimize-existing {--dry-run} {--execute} {--limit=}', function (MediaOptimizationService $optimizer) {
+    if (!$this->option('dry-run') && !$this->option('execute')) {
+        $this->error('Use --dry-run or explicitly pass --execute.'); return 1;
+    }
+    $totalRecords = ProductImage::count();
+    $pathQuery = ProductImage::query()->select('image')->distinct()->orderBy('image');
+    if ($this->option('limit')) $pathQuery->limit((int) $this->option('limit'));
+    $selectedPaths = $pathQuery->pluck('image');
+    $records = ProductImage::query()->whereIn('image', $selectedPaths)->orderBy('id')->get();
+    $groups = $records->groupBy('image');
+    $processed = $already = $missing = $unsupported = $unavailable = $failed = $duplicatePaths = $additionalReferences = 0;
+    $uniquePaths = $groups->count();
+    foreach ($groups as $path => $group) {
+        $duplicateCount = $group->pluck('id')->unique()->count(); if ($duplicateCount > 1) { $duplicatePaths++; $additionalReferences += $duplicateCount - 1; }
+        $inspection = $optimizer->inspectStored($path);
+        if ($this->option('dry-run')) {
+            $this->line(sprintf('%s | %s | format=%s | variants=%s | refs=%d', $path, $inspection['status'], $inspection['format'] ?: 'unknown', json_encode($inspection['variants']), $duplicateCount));
+            match ($inspection['status']) { 'missing' => $missing++, 'unsupported' => $unsupported++, 'processor_unavailable' => $unavailable++, 'already_optimized' => $already++, default => null };
+            continue;
+        }
+        try {
+            if ($inspection['status'] === 'missing') { $missing++; continue; }
+            if ($inspection['status'] === 'unsupported' || $inspection['status'] === 'already_optimized') { $already++; continue; }
+            if ($inspection['status'] === 'processor_unavailable') { $unavailable++; continue; }
+            $result = $optimizer->optimizeStored($path, 'large');
+            if (!$result || !$optimizer->inspectStored($result['path'])['status']) { $failed++; continue; }
+            ProductImage::whereIn('id', $group->pluck('id'))->update(['image' => $result['path']]); $processed++;
+        } catch (Throwable $exception) {
+            $failed++;
+            Log::error('Existing media optimization failed', ['path' => $path, 'stage' => 'conversion', 'message' => $exception->getMessage(), 'outputs_created' => false, 'database_updated' => false]);
+            $this->error("{$path} | stage=conversion | outputs_created=no | database_updated=no | {$exception->getMessage()}");
+        }
+    }
+    $this->info("Total records: {$totalRecords}; Unique paths: {$uniquePaths}; Eligible processed: {$processed}; Already optimized: {$already}; Missing: {$missing}; Unsupported: {$unsupported}; Processor unavailable: {$unavailable}; Paths with multiple distinct records: {$duplicatePaths}; Additional references: {$additionalReferences}; Failed: {$failed}");
+})->purpose('Inspect existing public product media safely before optimization');
 
 Artisan::command('dashboard:demo-orders', function () {
     $brands = Brand::query()

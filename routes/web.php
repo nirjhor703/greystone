@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\MemberController as AdminMemberController;
 use App\Http\Controllers\Admin\InvestmentController as AdminInvestmentController;
 use App\Http\Controllers\Admin\PeopleProfileController as AdminPeopleProfileController;
+use App\Http\Controllers\Admin\EmployeeOrganizationController;
 use App\Http\Controllers\Admin\ReferrerController as AdminReferrerController;
 use App\Http\Controllers\Admin\PurchaseMilestoneController as AdminPurchaseMilestoneController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -140,6 +141,19 @@ Route::middleware(['auth', 'admin.active'])
         Route::post('/customers/people-profile-types', [AdminPeopleProfileController::class, 'storeType'])->middleware('admin.permission:customers.view')->name('people-profile-types.store');
         Route::put('/customers/people-profile-types/{peopleProfileType}', [AdminPeopleProfileController::class, 'updateType'])->middleware('admin.permission:customers.view')->name('people-profile-types.update');
         Route::delete('/customers/people-profile-types/{peopleProfileType}', [AdminPeopleProfileController::class, 'destroyType'])->middleware('admin.permission:customers.view')->name('people-profile-types.destroy');
+        Route::get('/employee-organization/departments', [EmployeeOrganizationController::class, 'departments'])->middleware('admin.permission:customers.view')->name('employee.departments.index');
+        Route::get('/employee-organization/people', [EmployeeOrganizationController::class, 'people'])->middleware('admin.permission:customers.view')->name('employee.people.index');
+        Route::patch('/employee-organization/people/{peopleProfile}/assignment', [EmployeeOrganizationController::class, 'assign'])->middleware('admin.permission:customers.view')->name('employee.people.assignment');
+        Route::post('/employee-organization/departments', [EmployeeOrganizationController::class, 'storeDepartment'])->middleware('admin.permission:customers.view')->name('employee.departments.store');
+        Route::put('/employee-organization/departments/{department}', [EmployeeOrganizationController::class, 'updateDepartment'])->middleware('admin.permission:customers.view')->name('employee.departments.update');
+        Route::post('/employee-organization/designations', [EmployeeOrganizationController::class, 'storeDesignation'])->middleware('admin.permission:customers.view')->name('employee.designations.store');
+        Route::put('/employee-organization/designations/{designation}', [EmployeeOrganizationController::class, 'updateDesignation'])->middleware('admin.permission:customers.view')->name('employee.designations.update');
+        Route::get('/employee-organization/designations/{designation}/responsibilities', [EmployeeOrganizationController::class, 'responsibilities'])->middleware('admin.permission:customers.view')->name('employee.responsibilities.index');
+        Route::post('/employee-organization/designations/{designation}/responsibilities', [EmployeeOrganizationController::class, 'storeResponsibility'])->middleware('admin.permission:customers.view')->name('employee.responsibilities.store');
+        Route::put('/employee-organization/responsibilities/{responsibility}', [EmployeeOrganizationController::class, 'updateResponsibility'])->middleware('admin.permission:customers.view')->name('employee.responsibilities.update');
+        Route::delete('/employee-organization/responsibilities/{responsibility}', [EmployeeOrganizationController::class, 'destroyResponsibility'])->middleware('admin.permission:customers.view')->name('employee.responsibilities.destroy');
+        Route::get('/employee-directory', [EmployeeOrganizationController::class, 'directory'])->middleware('admin.permission:customers.view')->name('employee.directory');
+        Route::get('/employee-organization/designations/{designation}/print', [EmployeeOrganizationController::class, 'printJobDescription'])->middleware('admin.permission:customers.view')->name('employee.designations.print');
 
         Route::get('/management/investments', [AdminInvestmentController::class, 'index'])->middleware('admin.permission:customers.view')->name('investments.index');
         Route::post('/management/investors', [AdminInvestmentController::class, 'storeInvestor'])->middleware('admin.permission:customers.view')->name('investors.store');
@@ -372,6 +386,14 @@ Route::middleware(['auth', 'admin.active'])
             ->whereNumber('product')
             ->middleware('admin.permission:products.update')
             ->name('products.update');
+
+        Route::post(
+            '/products/{product}/packaging-tiers/reset',
+            [AdminProductController::class, 'resetPackagingTiers']
+        )
+            ->whereNumber('product')
+            ->middleware('admin.permission:products.update')
+            ->name('products.packaging-tiers.reset');
 
         Route::delete(
             '/products/{product}',
@@ -645,6 +667,15 @@ Route::get(
         'pink-touch',
     ])
     ->name('products.show');
+
+Route::get(
+    '/{slug}/search',
+    [BrandController::class, 'search']
+)->whereIn('slug', [
+    'grey-stone',
+    'blue-shades',
+    'pink-touch',
+])->name('brand.search');
 
 Route::get(
     '/{slug}',

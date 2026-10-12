@@ -85,11 +85,7 @@
     $activeCategoryKey = $selectedCategoryKey ?? '';
     $activeCategoryName = $selectedCategory?->name ?? '';
     $productsPagination = $products ?? null;
-    $searchProductsCollection = $searchProducts ?? collect();
     $activeCouponsCollection = $activeCoupons ?? collect();
-    $saleProductsCollection = $searchProductsCollection
-        ->filter(fn ($product) => $product->is_sales_badge)
-        ->values();
     $signupBannerUrl = $brand->signup_banner
         ? Storage::url($brand->signup_banner)
         : null;
@@ -118,15 +114,10 @@
     $searchMaxPrice = max(
         1000,
         (int) ceil(
-            $searchProductsCollection
-                ->map(fn ($product) => (float) ($product->sale_price ?: $product->regular_price))
-                ->max()
-            ?: 1000
+            $searchMaxPrice ?? 1000
         )
     );
-    $brandProductCount = $searchProductsCollection
-        ->filter(fn ($product) => (int) ($product->brand_id ?? $product->brand?->id) === (int) $brand->id)
-        ->count();
+    $brandProductCount = (int) ($brandProductCount ?? 0);
 @endphp
 
 <div class="storefront storefront-{{ $brandSlug }}">
@@ -237,6 +228,9 @@
                         src="{{ Storage::url($brandLogo) }}"
                         alt="{{ $brand->name }}"
                         class="store-logo-image"
+                        loading="eager"
+                        decoding="async"
+                        fetchpriority="high"
                     >
                 @else
                     <span class="store-logo-fallback">
@@ -626,7 +620,7 @@
 
             <div class="store-search-summary">
                 <span id="storeSearchCount">
-                    {{ $searchProductsCollection->count() }} products
+                    Search products
                 </span>
 
                 <button
@@ -638,117 +632,7 @@
             </div>
 
             <div class="store-search-results" id="storeSearchResults">
-                @foreach ($searchProductsCollection as $product)
-                    @php
-                        $searchImage = $product->primaryImage
-                            ?? $product->images->first();
-                        $searchBrand = $product->brand ?? $brand;
-
-                        $searchPrice = !is_null($product->sale_price)
-                            ? (float) $product->sale_price
-                            : (float) $product->regular_price;
-                        $searchSavings = $product->isOnSale()
-                            ? max(
-                                ((float) $product->regular_price) - ((float) $product->sale_price),
-                                0
-                            )
-                            : 0;
-                        $searchAudience = $product->audience ?: 'both';
-                        $searchCategoryName = $product->category?->name ?? 'Product';
-                        $searchCategorySlug = $product->category?->slug ?? '';
-                        $searchCategoryKey = \Illuminate\Support\Str::slug(
-                            $searchCategorySlug ?: $searchCategoryName
-                        );
-                        $searchTags = collect([
-                            $product->is_featured ? 'featured' : null,
-                            $product->is_new_arrival ? 'new' : null,
-                            $product->is_sales_badge ? 'sale' : null,
-                            $searchAudience,
-                            $searchAudience === 'both' ? 'men women' : null,
-                        ])->filter()->implode(' ');
-                    @endphp
-
-                    <article
-                        class="store-search-result"
-                        data-search-item
-                        data-search-text="{{ strtolower($product->name.' '.$product->product_code.' '.$searchCategoryName.' '.$searchCategorySlug.' '.$searchTags) }}"
-                        data-search-category="{{ $searchCategorySlug }}"
-                        data-search-category-key="{{ $searchCategoryKey }}"
-                        data-search-audience="{{ $searchAudience }}"
-                        data-search-price="{{ $searchPrice }}"
-                        data-search-tags="{{ $searchTags }}"
-                        data-search-brand-id="{{ $searchBrand->id }}"
-                        data-search-brand-name="{{ $searchBrand->name }}"
-                        data-search-brand-slug="{{ $searchBrand->slug }}"
-                        data-search-brand-priority="{{ (int) $searchBrand->id === (int) $brand->id ? 'primary' : 'secondary' }}"
-                    >
-                        <a
-                            href="{{ route('products.show', [
-                                'brandSlug' => $searchBrand->slug,
-                                'productSlug' => $product->slug,
-                            ]) }}"
-                            class="store-search-main"
-                        >
-                            <span>
-                                @if ($searchImage)
-                                    <img
-                                        src="{{ Storage::url($searchImage->image) }}"
-                                        alt="{{ $product->name }}"
-                                        loading="lazy"
-                                    >
-                                @else
-                                    {{ strtoupper(substr($product->name, 0, 1)) }}
-                                @endif
-                            </span>
-
-                            <strong>{{ $product->name }}</strong>
-
-                            <small>
-                                {{ $searchCategoryName }}
-                                ·
-                                {{ $searchAudience === 'both' ? 'Men & Women' : ucfirst($searchAudience) }}
-                            </small>
-                        </a>
-
-                        <div class="store-search-side">
-                            <em class="store-search-brand-badge">
-                                {{ $searchBrand->name }}
-                            </em>
-
-                            <div class="store-search-side-bottom">
-                                <div class="store-search-price-stack">
-                                    <b>৳{{ number_format($searchPrice, 0) }}</b>
-
-                                    @if ($searchSavings > 0)
-                                        <span class="store-search-savings">
-                                            -৳{{ number_format($searchSavings, 0) }}
-                                        </span>
-                                    @endif
-                                </div>
-
-                                <button
-                                    type="button"
-                                    class="store-wishlist-button search"
-                                    data-wishlist-button
-                                    data-product-id="{{ $product->id }}"
-                                    data-product-name="{{ $product->name }}"
-                                    data-product-url="{{ route('products.show', [
-                                        'brandSlug' => $searchBrand->slug,
-                                        'productSlug' => $product->slug,
-                                    ]) }}"
-                                    data-product-image="{{ $searchImage ? Storage::url($searchImage->image) : '' }}"
-                                    data-product-category="{{ $searchCategoryName }}"
-                                    data-product-price="{{ $searchPrice }}"
-                                    data-product-brand-name="{{ $searchBrand->name }}"
-                                    data-product-brand-slug="{{ $searchBrand->slug }}"
-                                    aria-label="Add {{ $product->name }} to wishlist"
-                                >
-                                    <i class="fa-regular fa-heart"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </article>
-                @endforeach
+                <div class="store-search-loading" id="storeSearchLoading" hidden>Searching...</div>
 
                 <div
                     class="store-related-divider"
@@ -1017,7 +901,7 @@
 
                     <div class="store-new-arrival-viewport">
                         <div class="store-new-arrival-strip">
-                            @foreach ($newArrivalProducts->concat($newArrivalProducts) as $product)
+                            @foreach ($newArrivalProducts->concat($newArrivalProducts) as $newArrivalIndex => $product)
                                 @php
                                     $newArrivalImage = $product->primaryImage
                                         ?? $product->images->first();
@@ -1064,6 +948,9 @@
                                         'regular_price' => (float) $product->regular_price,
                                         'sale_price' => !is_null($product->sale_price) ? (float) $product->sale_price : null,
                                         'stock_quantity' => (int) $product->stock_quantity,
+                                        'packaging_type_enabled' => (bool) $product->packaging_type_enabled,
+                                        'premium_packaging_charge' => (float) $product->premium_packaging_charge,
+                                        'packaging_tiers' => $newArrivalPackagingTiers->get($product->id, collect()),
                                         'image_url' => $newArrivalImage ? Storage::url($newArrivalImage->image) : null,
                                         'variants' => $newArrivalVariants,
                                     ];
@@ -1120,10 +1007,28 @@
 
                                         <a href="{{ $newArrivalUrl }}" class="store-new-arrival-image">
                                             @if ($newArrivalImage)
-                                                <img
-                                                    src="{{ Storage::url($newArrivalImage->image) }}"
+                                    @php
+                                        $newArrivalThumbnailUrl = Storage::url($newArrivalImage->image);
+                                        $newArrivalCardUrl = $newArrivalThumbnailUrl;
+                                        $newArrivalSrcset = collect([
+                                            $newArrivalThumbnailUrl ? $newArrivalThumbnailUrl.' 320w' : null,
+                                            $newArrivalCardUrl && $newArrivalCardUrl !== $newArrivalThumbnailUrl
+                                                ? $newArrivalCardUrl.' 720w'
+                                                : null,
+                                        ])->filter()->implode(', ');
+                                    @endphp
+                                    <img
+                                        src="{{ $newArrivalThumbnailUrl }}"
+                                        @if ($newArrivalSrcset)
+                                            srcset="{{ $newArrivalSrcset }}"
+                                        @endif
+                                        sizes="(max-width: 640px) 80vw, (max-width: 1100px) 32vw, 280px"
                                                     alt="{{ $product->name }}"
-                                                    loading="lazy"
+                                                    loading="{{ $newArrivalIndex < 2 ? 'eager' : 'lazy' }}"
+                                                    decoding="async"
+                                                    @if ($newArrivalIndex < 2)
+                                                        fetchpriority="high"
+                                                    @endif
                                                 >
                                             @else
                                                 <span class="store-new-arrival-fallback">
@@ -1263,7 +1168,7 @@
                                 @if ($category->image)
                                     <div class="store-category-image">
                                         <img
-                                            src="{{ Storage::url($category->image) }}"
+                                        src="{{ Storage::url($category->image) }}"
                                             alt="{{ $category->name }}"
                                             loading="lazy"
                                         >
@@ -1348,6 +1253,7 @@
                             [
                                 'product' => $product,
                                 'brand' => $brand,
+                                'isAboveFold' => $loop->index < 2,
                             ]
                         )
                     @endforeach
@@ -1375,6 +1281,7 @@
                                 [
                                     'product' => $product,
                                     'brand' => $brand,
+                                'isAboveFold' => false,
                                 ]
                             )
                         @endforeach
@@ -1822,6 +1729,10 @@
             'storeSearchEmpty'
         );
 
+        const storeSearchLoading = document.getElementById(
+            'storeSearchLoading'
+        );
+
         const storeSalesBannerButton = document.getElementById(
             'storeSalesBannerButton'
         );
@@ -1910,10 +1821,13 @@
         let newArrivalResumeTimer = null;
         let newArrivalLastTime = 0;
         let newArrivalPaused = false;
+        let newArrivalInViewport = true;
         let newArrivalPointerDown = false;
         let storeBannerAutoSlideTimer = null;
         let storeBannerAutoSlidePaused = false;
         let storeBannerAutoSlideIndex = 0;
+        let storeBannerInViewport = true;
+        const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         let activeSearchAudience = 'all';
         let activeSearchCategory = 'all';
         let activeSearchTag = 'all';
@@ -1947,6 +1861,30 @@
         function pauseNewArrivalAutoMove() {
             newArrivalPaused = true;
             window.clearTimeout(newArrivalResumeTimer);
+            stopNewArrivalAutoMove();
+        }
+
+        function stopNewArrivalAutoMove() {
+            if (newArrivalFrame !== null) {
+                window.cancelAnimationFrame(newArrivalFrame);
+                newArrivalFrame = null;
+            }
+            newArrivalLastTime = 0;
+        }
+
+        function scheduleNewArrivalAutoMove() {
+            if (
+                !newArrivalViewport
+                || newArrivalPaused
+                || !newArrivalInViewport
+                || document.hidden
+                || prefersReducedMotion
+                || newArrivalFrame !== null
+            ) {
+                return;
+            }
+
+            newArrivalFrame = window.requestAnimationFrame(runNewArrivalAutoMove);
         }
 
         function resumeNewArrivalAutoMove(delay = 2000) {
@@ -1960,30 +1898,38 @@
                     keepNewArrivalLoopClean();
                     newArrivalLastTime = 0;
                     newArrivalPaused = false;
+                    scheduleNewArrivalAutoMove();
                 },
                 delay
             );
         }
 
         function runNewArrivalAutoMove(timestamp) {
-            if (newArrivalViewport && !newArrivalPaused) {
-                if (!newArrivalLastTime) {
-                    newArrivalLastTime = timestamp;
-                }
+            newArrivalFrame = null;
 
-                const elapsed = Math.min(
-                    timestamp - newArrivalLastTime,
-                    40
-                );
-
-                newArrivalViewport.scrollLeft += elapsed * 0.075;
-                newArrivalLastTime = timestamp;
-                keepNewArrivalLoopClean();
+            if (
+                !newArrivalViewport
+                || newArrivalPaused
+                || !newArrivalInViewport
+                || document.hidden
+                || prefersReducedMotion
+            ) {
+                return;
             }
 
-            newArrivalFrame = window.requestAnimationFrame(
-                runNewArrivalAutoMove
+            if (!newArrivalLastTime) {
+                newArrivalLastTime = timestamp;
+            }
+
+            const elapsed = Math.min(
+                timestamp - newArrivalLastTime,
+                40
             );
+
+            newArrivalViewport.scrollLeft += elapsed * 0.075;
+            newArrivalLastTime = timestamp;
+            keepNewArrivalLoopClean();
+            scheduleNewArrivalAutoMove();
         }
 
         function getStoreBannerCards() {
@@ -2027,19 +1973,37 @@
         function startStoreBannerAutoSlide() {
             stopStoreBannerAutoSlide();
 
-            if (!storeBannerActions) {
+            if (!storeBannerActions || !storeBannerInViewport || document.hidden) {
                 return;
             }
 
-            storeBannerAutoSlideTimer = window.setInterval(
-                runStoreBannerAutoSlide,
-                2600
-            );
+            if (!prefersReducedMotion) {
+                storeBannerAutoSlideTimer = window.setInterval(
+                    runStoreBannerAutoSlide,
+                    2600
+                );
+            }
         }
 
 
         if (newArrivalViewport) {
             newArrivalViewport.scrollLeft = 0;
+
+            if ('IntersectionObserver' in window) {
+                const newArrivalObserver = new IntersectionObserver(
+                    function (entries) {
+                        newArrivalInViewport = entries[0]?.isIntersecting ?? true;
+                        newArrivalLastTime = 0;
+                        if (newArrivalInViewport) {
+                            scheduleNewArrivalAutoMove();
+                        } else {
+                            stopNewArrivalAutoMove();
+                        }
+                    },
+                    { rootMargin: '120px 0px' }
+                );
+                newArrivalObserver.observe(newArrivalViewport);
+            }
 
             [
                 'pointerdown',
@@ -2088,18 +2052,36 @@
                 'visibilitychange',
                 function () {
                     newArrivalPaused = document.hidden;
-                    newArrivalLastTime = 0;
+                    if (document.hidden) {
+                        stopNewArrivalAutoMove();
+                    } else {
+                        newArrivalLastTime = 0;
+                        scheduleNewArrivalAutoMove();
+                    }
                 }
             );
 
-            newArrivalFrame = window.requestAnimationFrame(
-                runNewArrivalAutoMove
-            );
+            scheduleNewArrivalAutoMove();
         }
 
         if (storeBannerActions) {
             storeBannerAutoSlideIndex = 0;
             storeBannerActions.scrollLeft = 0;
+
+            if ('IntersectionObserver' in window) {
+                const storeBannerObserver = new IntersectionObserver(
+                    function (entries) {
+                        storeBannerInViewport = entries[0]?.isIntersecting ?? true;
+                        if (storeBannerInViewport) {
+                            startStoreBannerAutoSlide();
+                        } else {
+                            stopStoreBannerAutoSlide();
+                        }
+                    },
+                    { rootMargin: '120px 0px' }
+                );
+                storeBannerObserver.observe(storeBannerActions);
+            }
 
             [
                 'pointerdown',
@@ -2153,6 +2135,11 @@
                 'visibilitychange',
                 function () {
                     storeBannerAutoSlidePaused = document.hidden;
+                    if (document.hidden) {
+                        stopStoreBannerAutoSlide();
+                    } else {
+                        startStoreBannerAutoSlide();
+                    }
                 }
             );
 
@@ -2223,8 +2210,9 @@
                     'sale',
                     'searchTag'
                 );
-                applyStoreSearchFilters();
             }
+
+            applyStoreSearchFilters();
 
             setActiveDockAction('search');
 
@@ -2451,93 +2439,98 @@
                 .includes(activeSearchTag);
         }
 
-        function applyStoreSearchFilters() {
-            const query = storeSearchInput?.value
-                .trim()
-                .toLowerCase() || '';
+        let searchRequestSequence = 0;
+        let searchDebounceTimer = null;
 
-            const minPrice = Number(
-                storeSearchMinRange?.value || 0
-            );
+        function escapeSearchHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
-            const maxPrice = Number(
-                storeSearchMaxRange?.value || searchPriceLimit
-            );
+        function renderSearchResults(products) {
+            if (!storeSearchResults) return;
 
-            let visibleCount = 0;
+            storeSearchResults.querySelectorAll('[data-search-item]').forEach((item) => item.remove());
 
-            storeSearchOverlay
-                ?.querySelectorAll('[data-search-item]')
-                .forEach(function (item) {
-                    const haystack =
-                        item.dataset.searchText || '';
+            const markup = products.map((product) => {
+                const savings = Math.max(Number(product.regular_price || 0) - Number(product.price || 0), 0);
+                const image = product.image_url
+                    ? `<img src="${escapeSearchHtml(product.image_url)}" alt="${escapeSearchHtml(product.name)}" loading="lazy">`
+                    : escapeSearchHtml(String(product.name || '').slice(0, 1).toUpperCase());
+                const audience = product.audience === 'both'
+                    ? 'Men & Women'
+                    : String(product.audience || '').replace(/^./, (letter) => letter.toUpperCase());
 
-                    const itemCategory =
-                        item.dataset.searchCategory || '';
+                return `<article class="store-search-result" data-search-item data-search-brand-priority="${escapeSearchHtml(product.brand_priority)}">
+                    <a href="${escapeSearchHtml(product.url)}" class="store-search-main">
+                        <span>${image}</span>
+                        <strong>${escapeSearchHtml(product.name)}</strong>
+                        <small>${escapeSearchHtml(product.category_name)} · ${escapeSearchHtml(audience)}</small>
+                    </a>
+                    <div class="store-search-side">
+                        <em class="store-search-brand-badge">${escapeSearchHtml(product.brand_name)}</em>
+                        <div class="store-search-side-bottom">
+                            <div class="store-search-price-stack">
+                                <b>৳${Number(product.price || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</b>
+                                ${savings > 0 ? `<span class="store-search-savings">-৳${savings.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>` : ''}
+                            </div>
+                            <button type="button" class="store-wishlist-button search" data-wishlist-button
+                                data-product-id="${escapeSearchHtml(product.id)}"
+                                data-product-name="${escapeSearchHtml(product.name)}"
+                                data-product-url="${escapeSearchHtml(product.url)}"
+                                data-product-image="${escapeSearchHtml(product.image_url || '')}"
+                                data-product-category="${escapeSearchHtml(product.category_name)}"
+                                data-product-price="${escapeSearchHtml(product.price)}"
+                                data-product-brand-name="${escapeSearchHtml(product.brand_name)}"
+                                data-product-brand-slug="${escapeSearchHtml(product.brand_slug || '')}"
+                                aria-label="Add ${escapeSearchHtml(product.name)} to wishlist"><i class="fa-regular fa-heart"></i></button>
+                        </div>
+                    </div>
+                </article>`;
+            }).join('');
 
-                    const itemCategoryKey =
-                        item.dataset.searchCategoryKey || '';
-
-                    const itemAudience =
-                        item.dataset.searchAudience || 'both';
-
-                    const itemTags =
-                        item.dataset.searchTags || '';
-
-                    const itemPrice = Number(
-                        item.dataset.searchPrice || 0
-                    );
-
-                    const queryMatched =
-                        query.length === 0
-                        || haystack.includes(query);
-
-                    const categoryMatched =
-                        activeSearchMode === 'sale'
-                        ||
-                        activeSearchCategory === 'all'
-                        || itemCategory === activeSearchCategory
-                        || itemCategoryKey === activeSearchCategory;
-
-                    const audienceMatched =
-                        activeSearchMode === 'sale'
-                        ||
-                        searchAudienceMatches(itemAudience);
-
-                    const tagMatched =
-                        searchTagMatches(itemTags);
-
-                    const minMatched =
-                        !minPrice || itemPrice >= minPrice;
-
-                    const maxMatched =
-                        !maxPrice || itemPrice <= maxPrice;
-
-                    const matched =
-                        queryMatched
-                        && categoryMatched
-                        && audienceMatched
-                        && tagMatched
-                        && minMatched
-                        && maxMatched;
-
-                    item.hidden = !matched;
-
-                    if (matched) {
-                        visibleCount += 1;
-                    }
-                });
-
-            regroupSearchResults();
-
+            storeSearchRelatedDivider?.insertAdjacentHTML('beforebegin', markup);
             if (storeSearchCount) {
-                storeSearchCount.textContent =
-                    `${visibleCount} product${visibleCount === 1 ? '' : 's'}`;
+                storeSearchCount.textContent = `${products.length} product${products.length === 1 ? '' : 's'}`;
             }
+            if (storeSearchEmpty) storeSearchEmpty.hidden = products.length > 0;
+            regroupSearchResults();
+        }
 
-            if (storeSearchEmpty) {
-                storeSearchEmpty.hidden = visibleCount > 0;
+        async function loadStoreSearchResults() {
+            const sequence = ++searchRequestSequence;
+            const params = new URLSearchParams({
+                q: storeSearchInput?.value.trim() || '',
+                audience: activeSearchMode === 'sale' ? 'all' : activeSearchAudience,
+                category: activeSearchMode === 'sale' ? 'all' : activeSearchCategory,
+                tag: activeSearchMode === 'sale' ? 'sale' : activeSearchTag,
+                min_price: activeSearchMode === 'sale' ? '0' : String(storeSearchMinRange?.value || 0),
+                max_price: activeSearchMode === 'sale' ? '0' : String(storeSearchMaxRange?.value || searchPriceLimit),
+                limit: '24',
+            });
+
+            if (storeSearchLoading) storeSearchLoading.hidden = false;
+            try {
+                const response = await fetch(`{{ route('brand.search', ['slug' => $brand->slug]) }}?${params.toString()}`, {
+                    headers: { Accept: 'application/json' },
+                });
+                if (!response.ok) throw new Error('Search request failed.');
+                const data = await response.json();
+                if (sequence === searchRequestSequence) renderSearchResults(data.data || []);
+            } catch (error) {
+                if (sequence === searchRequestSequence) renderSearchResults([]);
+            } finally {
+                if (sequence === searchRequestSequence && storeSearchLoading) storeSearchLoading.hidden = true;
             }
+        }
+
+        function applyStoreSearchFilters() {
+            window.clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = window.setTimeout(loadStoreSearchResults, 220);
         }
 
         function regroupSearchResults() {

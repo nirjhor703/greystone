@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const editSubmit = document.getElementById(
         'editProductSubmitButton'
     );
+    const sharedPackagingTiers = JSON.parse(
+        document.getElementById('sharedPackagingTierData')?.textContent || '[]'
+    );
 
     const deleteSubmit = document.getElementById(
         'confirmDeleteProductButton'
@@ -1101,6 +1104,65 @@ document.addEventListener('DOMContentLoaded', () => {
             'aria-pressed',
             enabled ? 'true' : 'false'
         );
+
+        const chargeField = document.querySelector(
+            `[data-packaging-charge-field="${inputId}"]`
+        );
+
+        if (chargeField) {
+            chargeField.hidden = !enabled;
+        }
+    }
+
+    function renderPackagingTiers(prefix, tiers = []) {
+        const list = document.querySelector(`[data-packaging-tier-list="${prefix}"]`);
+        if (!list) return;
+        list.innerHTML = '';
+        tiers.forEach((tier, index) => {
+            const row = document.createElement('div');
+            row.className = 'packaging-tier-row';
+            const price = tier.price === '' || tier.price === null || typeof tier.price === 'undefined'
+                ? ''
+                : Number(tier.price).toFixed(2);
+            row.innerHTML = `
+                <input data-tier-field="name" name="packaging_tiers[${index}][name]" value="${escapeHtml(tier.name || '')}" placeholder="Tier name" required>
+                <input data-tier-field="min_pieces" type="number" name="packaging_tiers[${index}][min_pieces]" value="${Number(tier.min_pieces || 1)}" min="1" placeholder="Min" required>
+                <input data-tier-field="max_pieces" type="number" name="packaging_tiers[${index}][max_pieces]" value="${Number(tier.max_pieces || 1)}" min="1" placeholder="Max" required>
+                <input data-tier-field="price" type="number" name="packaging_tiers[${index}][price]" value="${price}" min="0" step="0.01" placeholder="Price" required>
+                <button type="button" class="product-danger-button" data-remove-packaging-tier>Remove</button>
+            `;
+            list.appendChild(row);
+        });
+    }
+
+    function updatePackagingTierStatus(prefix, isCustom) {
+        const status = document.querySelector(`[data-packaging-tier-status="${prefix}"]`);
+        if (status) {
+            status.textContent = isCustom
+                ? 'Custom Packaging Tiers for This Product'
+                : 'Using Default Packaging Tiers';
+        }
+
+        const reset = document.querySelector(`[data-reset-packaging-tiers="${prefix}"]`);
+        if (reset) reset.hidden = !isCustom;
+    }
+
+    function productFormData(form, prefix) {
+        const source = new FormData(form);
+        const data = new FormData();
+        for (const [key, value] of source.entries()) {
+            if (!key.startsWith('packaging_tiers[')) data.append(key, value);
+        }
+
+        const list = document.querySelector(`[data-packaging-tier-list="${prefix}"]`);
+        Array.from(list?.querySelectorAll('.packaging-tier-row') || []).forEach((row, index) => {
+            ['name', 'min_pieces', 'max_pieces', 'price'].forEach((field) => {
+                const input = row.querySelector(`[data-tier-field="${field}"]`);
+                if (input) data.set(`packaging_tiers[${index}][${field}]`, input.value);
+            });
+        });
+
+        return data;
     }
     
     function resetBooleanToggles(prefix) {
@@ -1116,6 +1178,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setBooleanToggle(
             `${prefix}_is_sales_badge`,
+            false
+        );
+
+        setBooleanToggle(
+            `${prefix}_packaging_type_enabled`,
             false
         );
     }
@@ -1419,6 +1486,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'product_code',
             'regular_price',
             'sale_price',
+            'premium_packaging_charge',
             'material',
             'short_description',
             'description',
@@ -1457,6 +1525,11 @@ document.addEventListener('DOMContentLoaded', () => {
             product.is_sales_badge === true ||
             product.is_sales_badge === 1 ||
             product.is_sales_badge === '1';
+
+        const packagingTypeEnabled =
+            product.packaging_type_enabled === true ||
+            product.packaging_type_enabled === 1 ||
+            product.packaging_type_enabled === '1';
     
         setBooleanToggle(
             'edit_is_featured',
@@ -1472,6 +1545,21 @@ document.addEventListener('DOMContentLoaded', () => {
             'edit_is_sales_badge',
             salesBadgeEnabled
         );
+
+        setBooleanToggle(
+            'edit_packaging_type_enabled',
+            packagingTypeEnabled
+        );
+        const editTiers = Array.isArray(product.packaging_tiers) && product.packaging_tiers.length
+            ? product.packaging_tiers
+            : sharedPackagingTiers;
+        renderPackagingTiers('edit', editTiers);
+        const overrideInput = document.querySelector('[data-packaging-tier-override="edit"]');
+        const hasCustomPackagingTiers = product.premium_packaging_tier_override === true
+            || product.premium_packaging_tier_override === 1
+            || product.premium_packaging_tier_override === '1';
+        if (overrideInput) overrideInput.value = hasCustomPackagingTiers ? '1' : '0';
+        updatePackagingTierStatus('edit', hasCustomPackagingTiers);
     
         const productIdInput =
             document.getElementById('edit_product_id');
@@ -1680,7 +1768,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document
-    .querySelectorAll('.product-boolean-toggle')
+        .querySelectorAll('.product-boolean-toggle')
     .forEach((button) => {
         button.addEventListener(
             'click',
@@ -1716,6 +1804,8 @@ document.addEventListener('DOMContentLoaded', () => {
         clearErrors(addForm);
 
         resetBooleanToggles('add');
+        renderPackagingTiers('add', sharedPackagingTiers);
+        updatePackagingTierStatus('add', false);
 
         resetVariants('add');
 
@@ -2141,6 +2231,78 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+    document.addEventListener('click', (event) => {
+        const reset = event.target.closest('[data-reset-packaging-tiers]');
+        if (reset) {
+            const id = document.getElementById('edit_product_id')?.value;
+            if (!id || !window.confirm('Reset this product to the default packaging tiers?')) return;
+
+            reset.disabled = true;
+            fetch(`/admin/products/${id}/packaging-tiers/reset`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+            })
+                .then(parseResponse)
+                .then((data) => {
+                    const product = data.product || data;
+                    const tiers = Array.isArray(product.packaging_tiers)
+                        ? product.packaging_tiers
+                        : (Array.isArray(data.packaging_tiers) ? data.packaging_tiers : sharedPackagingTiers);
+                    renderPackagingTiers('edit', tiers);
+                    const overrideInput = document.querySelector('[data-packaging-tier-override="edit"]');
+                    if (overrideInput) overrideInput.value = '0';
+                    updatePackagingTierStatus('edit', false);
+                    showToast(data.message || 'Packaging tiers reset to default.');
+                })
+                .catch((error) => {
+                    showToast(error.data?.message || 'Unable to reset packaging tiers.', 'error');
+                })
+                .finally(() => {
+                    reset.disabled = false;
+                });
+            return;
+        }
+
+        const add = event.target.closest('[data-add-packaging-tier]');
+        if (add) {
+            const overrideInput = document.querySelector(`[data-packaging-tier-override="${add.dataset.addPackagingTier}"]`);
+            if (overrideInput) overrideInput.value = '1';
+            const list = document.querySelector(`[data-packaging-tier-list="${add.dataset.addPackagingTier}"]`);
+            const tiers = Array.from(list?.querySelectorAll('.packaging-tier-row') || []).map((row) => ({
+                name: row.querySelector('[data-tier-field="name"]')?.value,
+                min_pieces: row.querySelector('[data-tier-field="min_pieces"]')?.value,
+                max_pieces: row.querySelector('[data-tier-field="max_pieces"]')?.value,
+                price: row.querySelector('[data-tier-field="price"]')?.value,
+            }));
+            tiers.push({ name: '', min_pieces: 1, max_pieces: 1, price: 0 });
+            renderPackagingTiers(add.dataset.addPackagingTier, tiers);
+        }
+        const remove = event.target.closest('[data-remove-packaging-tier]');
+        if (remove) {
+            const overrideInput = document.querySelector(`[data-packaging-tier-override="${remove.closest('.packaging-tier-list')?.dataset.packagingTierList}"]`);
+            if (overrideInput) overrideInput.value = '1';
+            const list = remove.closest('.packaging-tier-list');
+            const rows = Array.from(list?.querySelectorAll('.packaging-tier-row') || []).filter((row) => row !== remove.closest('.packaging-tier-row'));
+            renderPackagingTiers(list?.dataset.packagingTierList, rows.map((row) => ({
+                name: row.querySelector('[data-tier-field="name"]')?.value,
+                min_pieces: row.querySelector('[data-tier-field="min_pieces"]')?.value,
+                max_pieces: row.querySelector('[data-tier-field="max_pieces"]')?.value,
+                price: row.querySelector('[data-tier-field="price"]')?.value,
+            })));
+        }
+    });
+
+    document.addEventListener('input', (event) => {
+        const field = event.target.closest('[data-tier-field]');
+        if (!field) return;
+        const list = field.closest('.packaging-tier-list');
+        const overrideInput = document.querySelector(`[data-packaging-tier-override="${list?.dataset.packagingTierList}"]`);
+        if (overrideInput) overrideInput.value = '1';
+    });
+
     document
         .getElementById('add_images')
         ?.addEventListener('change', (event) => {
@@ -2214,7 +2376,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json',
                     },
-                    body: new FormData(addForm),
+                    body: productFormData(addForm, 'add'),
                 }
             );
 
@@ -2396,7 +2558,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json',
                     },
-                    body: new FormData(editForm),
+                    body: productFormData(editForm, 'edit'),
                 }
             );
 

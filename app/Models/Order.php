@@ -22,6 +22,7 @@ class Order extends Model
 
     public const PAYMENT_UNPAID = 'Unpaid';
     public const PAYMENT_PAID = 'Paid';
+    public const PAYMENT_DELIVERY_CHARGE_PAID = 'Delivery Charge Paid';
 
     public const PAYMENT_COD = 'cash_on_delivery';
 
@@ -66,13 +67,16 @@ class Order extends Model
         'coupon_id',
         'coupon_code',
         'coupon_discount_amount',
+        'manual_discount_amount',
         'coupon_snapshot',
         'vat_enabled',
         'vat_percent',
         'vat_amount',
     
         'items_total',
+        'packaging_total',
         'delivery_charge',
+        'delivery_charge_paid',
         'grand_total',
     
         'status',
@@ -102,8 +106,11 @@ class Order extends Model
 
     protected $casts = [
         'items_total' => 'decimal:2',
+        'packaging_total' => 'decimal:2',
         'delivery_charge' => 'decimal:2',
+        'delivery_charge_paid' => 'decimal:2',
         'coupon_discount_amount' => 'decimal:2',
+        'manual_discount_amount' => 'decimal:2',
         'grand_total' => 'decimal:2',
         'vat_enabled' => 'boolean',
         'vat_percent' => 'decimal:2',
@@ -148,6 +155,25 @@ class Order extends Model
             self::CHANNEL_ONLINE => 'Online',
             self::CHANNEL_OFFLINE => 'Offline',
         ];
+    }
+
+    public function paidAmount(): float
+    {
+        $grandTotal = (float) $this->grand_total;
+
+        return match ($this->payment_status) {
+            self::PAYMENT_PAID => $grandTotal,
+            self::PAYMENT_DELIVERY_CHARGE_PAID => min(
+                max((float) $this->delivery_charge_paid, 0),
+                $grandTotal
+            ),
+            default => 0.0,
+        };
+    }
+
+    public function dueAmount(): float
+    {
+        return max((float) $this->grand_total - $this->paidAmount(), 0);
     }
 
     public function statusBadgeClass(): string

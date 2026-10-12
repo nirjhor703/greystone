@@ -137,6 +137,83 @@
         </div>
     </form>
 
+    <section class="employee-workforce-overview">
+        <button class="employee-total-card" type="button" data-open-employee-directory data-directory-url="{{ route('admin.employee.directory') }}">
+            <span class="dashboard-section-eyebrow">Workforce Overview</span>
+            <strong>{{ number_format($totalEmployees) }}</strong>
+            <span>Total Employees <b>↗</b></span>
+        </button>
+
+        <div class="employee-department-overview">
+            <div class="employee-overview-heading">
+                <div>
+                    <span class="dashboard-section-eyebrow">Department Distribution</span>
+                    <h3>Active employees by department</h3>
+                </div>
+            </div>
+            @if ((int) $totalEmployees === 0)
+                <div class="employee-empty-state">
+                    <strong>No employees assigned yet.</strong>
+                    <span>Select an existing person and assign their department and designation to get started.</span>
+                    <button type="button" class="brand-primary-button" data-open-employee-assignment>Assign Existing Employee</button>
+                </div>
+            @endif
+            @forelse($departmentHeadcounts as $department)
+                @php
+                    $headcount = (int) ($department->profiles_count ?? 0);
+                @endphp
+                <div class="employee-department-row">
+                    <span>{{ $department->name }}</span>
+                    <div class="employee-department-bar"><i style="width: {{ $totalEmployees ? min(100, ($headcount / $totalEmployees) * 100) : 0 }}%"></i></div>
+                    <strong>{{ number_format($headcount) }}</strong>
+                </div>
+            @empty
+                <p class="employee-overview-empty">No active departments yet.</p>
+            @endforelse
+        </div>
+    </section>
+
+    <section class="employee-management-launchers">
+        <button type="button" class="brand-primary-button" data-open-employee-assignment><i class="fa-solid fa-user-plus"></i> Assign Employee</button>
+        <button type="button" class="dashboard-filter-submit" data-open-employee-directory>Open Employee Directory</button>
+        <button type="button" class="dashboard-filter-submit" data-open-employee-organization>Manage Departments &amp; Designations</button>
+    </section>
+
+    <section class="employee-frontend-panel" data-employee-directory-panel hidden>
+        <div class="employee-frontend-panel-head"><div><span class="dashboard-section-eyebrow">Employee Directory</span><h3>Department-wise active employees</h3></div><button type="button" class="brand-secondary-button" data-close-employee-panel>Close</button></div>
+        <div class="employee-directory-filters"><input type="search" placeholder="Search employee name" data-directory-search><select data-directory-department><option value="">All departments</option></select><select data-directory-designation><option value="">All designations</option></select><button type="button" class="brand-primary-button" data-directory-apply>Search</button></div>
+        <div data-directory-results><p class="employee-overview-empty">Loading employees…</p></div>
+    </section>
+
+    <section class="employee-frontend-panel" data-employee-organization-panel hidden>
+        <div class="employee-frontend-panel-head"><div><span class="dashboard-section-eyebrow">Employee Organization</span><h3>Departments &amp; Designations</h3></div><button type="button" class="brand-secondary-button" data-close-employee-panel>Close</button></div>
+        <div class="employee-org-toolbar"><div class="employee-org-filters"><input type="search" placeholder="Search department or designation" data-organization-search><select data-organization-department><option value="">All departments</option></select></div><div class="employee-org-actions"><button type="button" class="brand-primary-button" data-add-department>Add Department</button><button type="button" class="brand-secondary-button" data-add-designation>Add Designation</button></div></div>
+        <div data-employee-organization-results><p class="employee-overview-empty">Loading organization…</p></div>
+    </section>
+
+    <div class="employee-duty-modal" data-employee-duty-modal hidden><div class="employee-duty-dialog"><div class="employee-frontend-panel-head"><div><span class="dashboard-section-eyebrow">Job Responsibilities</span><h3 data-duty-title></h3><p data-duty-department></p></div><button type="button" class="brand-secondary-button" data-close-duty-modal>Close</button></div><div class="employee-duty-actions"><button type="button" class="brand-primary-button" data-add-duty>Add Responsibility</button><button type="button" class="brand-secondary-button" data-print-duty>Print Job Description</button></div><div data-duty-list></div></div></div>
+
+    <div class="employee-form-modal" data-employee-assignment-modal hidden>
+        <div class="employee-form-dialog" role="dialog" aria-modal="true" aria-labelledby="employee-assignment-title">
+            <div class="employee-frontend-panel-head"><div><span class="dashboard-section-eyebrow">Employee Management</span><h3 id="employee-assignment-title">Assign Employee</h3><p>Select an existing person and assign their department and designation.</p></div><button type="button" class="brand-secondary-button" data-close-employee-modal>Close</button></div>
+            <form data-assignment-form>
+                <label class="employee-form-field"><span>1. Select Person</span><input type="search" placeholder="Search name, email or phone" data-assignment-search><div class="employee-person-results" data-assignment-people></div></label>
+                <input type="hidden" data-assignment-person>
+                <div class="employee-selected-person" data-assignment-selected hidden></div>
+                <label class="employee-form-field"><span>2. Select Department</span><select data-assignment-department required><option value="">Choose department</option></select></label>
+                <label class="employee-form-field"><span>3. Select Designation</span><select data-assignment-designation required disabled><option value="">Choose designation</option></select></label>
+                <p class="employee-form-error" data-assignment-error hidden></p>
+                <div class="employee-form-actions"><button type="button" class="brand-secondary-button" data-remove-assignment hidden>Remove Employee Assignment</button><button type="button" class="brand-secondary-button" data-close-employee-modal>Cancel</button><button type="submit" class="brand-primary-button" data-assignment-submit>Assign Employee</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="employee-form-modal" data-employee-org-modal hidden>
+        <div class="employee-form-dialog" role="dialog" aria-modal="true"><div class="employee-frontend-panel-head"><div><span class="dashboard-section-eyebrow">Organization Management</span><h3 data-org-modal-title></h3></div><button type="button" class="brand-secondary-button" data-close-employee-modal>Close</button></div><form data-org-form><div data-org-fields></div><p class="employee-form-error" data-org-error hidden></p><div class="employee-form-actions"><button type="button" class="brand-secondary-button" data-close-employee-modal>Cancel</button><button type="submit" class="brand-primary-button">Save</button></div></form></div>
+    </div>
+
+    <div class="employee-form-modal" data-employee-confirm-modal hidden><div class="employee-form-dialog employee-confirm-dialog" role="dialog" aria-modal="true"><div class="employee-frontend-panel-head"><div><span class="dashboard-section-eyebrow" data-confirm-eyebrow>Form</span><h3 data-confirm-title></h3><div class="employee-confirm-content" data-confirm-message></div></div><button type="button" class="brand-secondary-button" data-close-employee-modal>Close</button></div><div class="employee-form-actions"><button type="button" class="brand-secondary-button" data-close-employee-modal>Cancel</button><button type="button" class="brand-primary-button" data-confirm-action>Confirm</button></div></div></div>
+
     @php
         $myPerformance = $currentUserRow ?? [
             'rank' => '-',

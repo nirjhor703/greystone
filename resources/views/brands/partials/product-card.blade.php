@@ -22,6 +22,19 @@
 
     $productImage = $product->primaryImage
         ?? $product->images->first();
+    $productThumbnailUrl = $productImage
+        ? Storage::url($productImage->image)
+        : null;
+    $productCardUrl = $productImage
+        ? Storage::url($productImage->image)
+        : null;
+    $productSrcset = collect([
+        $productThumbnailUrl ? $productThumbnailUrl.' 320w' : null,
+        $productCardUrl && $productCardUrl !== $productThumbnailUrl
+            ? $productCardUrl.' 720w'
+            : null,
+    ])->filter()->implode(', ');
+    $isAboveFold = (bool) ($isAboveFold ?? false);
 
     $hasSale = !is_null($product->sale_price)
         && (float) $product->sale_price
@@ -185,9 +198,13 @@
         'stock_quantity' => (int) $product
             ->stock_quantity,
 
-        'image_url' => $productImage
-            ? Storage::url($productImage->image)
-            : null,
+        'packaging_type_enabled' => (bool) $product
+            ->packaging_type_enabled,
+
+        'premium_packaging_charge' => (float) $product
+            ->premium_packaging_charge,
+
+        'image_url' => $productCardUrl,
 
         'variants' => $variantsByColor,
     ];
@@ -237,10 +254,18 @@
 
         @if ($productImage)
             <img
-                src="{{ Storage::url($productImage->image) }}"
+                src="{{ $productThumbnailUrl }}"
+                @if ($productSrcset)
+                    srcset="{{ $productSrcset }}"
+                @endif
+                sizes="(max-width: 640px) 44vw, (max-width: 1100px) 28vw, 240px"
                 alt="{{ $product->name }}"
                 class="store-product-image"
-                loading="lazy"
+                loading="{{ $isAboveFold ? 'eager' : 'lazy' }}"
+                decoding="async"
+                @if ($isAboveFold)
+                    fetchpriority="high"
+                @endif
             >
         @else
             <div class="store-product-image-fallback">
@@ -263,7 +288,7 @@
             data-product-id="{{ $product->id }}"
             data-product-name="{{ $product->name }}"
             data-product-url="{{ $productUrl }}"
-            data-product-image="{{ $productImage ? Storage::url($productImage->image) : '' }}"
+            data-product-image="{{ $productCardUrl ?? '' }}"
             data-product-category="{{ $product->category?->name ?? 'Product' }}"
             data-product-price="{{ $unitPrice }}"
             data-product-brand-name="{{ $productBrand->name }}"

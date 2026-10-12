@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\PremiumPackagingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -32,7 +33,7 @@ class CartController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, PremiumPackagingService $packaging): JsonResponse
 {
     $validated = $request->validate([
         'brand_id' => [
@@ -76,6 +77,12 @@ class CartController extends Controller
             'integer',
             'min:1',
         ],
+
+        'packaging_type' => [
+            'nullable',
+            Rule::in(['normal', 'premium']),
+        ],
+        'packaging_tier_id' => ['nullable', 'integer'],
     ]);
 
     $brand = Brand::query()
@@ -100,6 +107,15 @@ class CartController extends Controller
         ?? $product->images->first();
 
     $unitPrice = $this->productPrice($product);
+    $packagingType = $product->packaging_type_enabled
+        ? ($validated['packaging_type'] ?? 'normal')
+        : 'normal';
+    $packagingLabel = $packagingType === 'premium'
+        ? 'Premium Packaging'
+        : 'Normal Packaging';
+    $packagingTierId = $validated['packaging_tier_id'] ?? null;
+    $requestedQuantity = collect($validated['items'])->sum('quantity');
+    $packagingSelection = $packaging->resolve($product, $packagingType, $packagingTierId, (int) $requestedQuantity);
 
     $cart = $request->session()->get('cart', []);
 
@@ -122,7 +138,9 @@ class CartController extends Controller
         $cartKey = $this->makeCartKey(
             $product->id,
             $size,
-            $color
+            $color,
+            $packagingType,
+            $packagingTierId
         );
 
         $existingQuantity = isset($cart[$cartKey])
@@ -163,6 +181,11 @@ class CartController extends Controller
 
             'size' => $size,
             'color' => $color,
+            'packaging_type' => $packagingType,
+            'packaging_label' => $packagingLabel,
+            'packaging_charge' => $packagingSelection['charge'],
+            'packaging_tier_id' => $packagingSelection['tier']?->id,
+            'packaging_tier_name' => $packagingSelection['tier']?->name,
             'color_hex' => $variant?->normalized_color_hex
                 ?: ProductVariant::normalizeColorHex(
                     $validated['color_hex'] ?? null
@@ -433,13 +456,17 @@ class CartController extends Controller
     private function makeCartKey(
         int $productId,
         ?string $size,
-        ?string $color
+        ?string $color,
+        string $packagingType = 'normal',
+        ?int $packagingTierId = null
     ): string {
         return sha1(
             implode('|', [
                 $productId,
                 $size ?: '-',
                 mb_strtolower($color ?: '-'),
+                $packagingType,
+                $packagingTierId ?: '-',
             ])
         );
     }
@@ -467,6 +494,7 @@ class CartController extends Controller
             ->map(function (array $item): array {
                 $quantity = (int) $item['quantity'];
                 $unitPrice = (float) $item['unit_price'];
+                $packagingCharge = (float) ($item['packaging_charge'] ?? 0);
 
                 return [
                     ...$item,
@@ -474,8 +502,9 @@ class CartController extends Controller
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
 
-                    'line_total' =>
-                        $quantity * $unitPrice,
+                    'line_total' => round($quantity * ($unitPrice + $packagingCharge), 2),
+                    'product_line_total' => round($quantity * $unitPrice, 2),
+                    'packaging_total' => round($quantity * $packagingCharge, 2),
                 ];
             })
             ->values();
@@ -489,6 +518,8 @@ class CartController extends Controller
             'count' => (int) $items->sum('quantity'),
             'unique_items' => $items->count(),
             'items_total' => $itemsTotal,
+            'product_items_total' => (float) $items->sum('product_line_total'),
+            'packaging_total' => (float) $items->sum('packaging_total'),
             'coupon' => $request->session()->get('checkout_coupon'),
         ];
     }

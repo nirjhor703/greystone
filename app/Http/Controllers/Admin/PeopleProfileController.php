@@ -8,6 +8,10 @@ use App\Models\PeopleProfile;
 use App\Models\PeopleProfileType;
 use App\Models\Referrer;
 use App\Models\User;
+use App\Models\Department;
+use App\Models\Designation;
+use App\Models\EmployeeAssignment;
+use App\Models\EmployeeResponsibility;
 use Illuminate\Support\Facades\File;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +19,7 @@ use Illuminate\View\View;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Str;
+use App\Services\MediaOptimizationService;
 
 class PeopleProfileController extends Controller
 {
@@ -33,7 +38,7 @@ class PeopleProfileController extends Controller
             ->all();
 
         $profiles = PeopleProfile::query()
-            ->with(['member', 'referrer', 'adminUser'])
+            ->with(['member', 'referrer', 'adminUser', 'primaryDepartment', 'primaryDesignation', 'assignments.department', 'assignments.designation', 'additionalResponsibilities'])
             ->when($request->filled('type'), fn ($query) => $query->where('profile_type', $request->string('type')))
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = trim((string) $request->string('search'));
@@ -62,12 +67,16 @@ class PeopleProfileController extends Controller
             'sensitivePermissions' => config('admin_permissions.sensitive', []),
             'totalProfiles' => PeopleProfile::count(),
             'activeProfiles' => PeopleProfile::where('is_active', true)->count(),
+            'departments' => Department::where('is_active', true)->orderBy('sort_order')->get(),
+            'designations' => Designation::where('is_active', true)->with('department')->orderBy('sort_order')->get(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $profile = PeopleProfile::create($this->validated($request));
+        $data = $this->validated($request);
+        $profile = PeopleProfile::create($data);
+        $this->syncOrganization($request, $profile);
         $this->syncPhoto($request, $profile);
         $this->syncReferral($profile);
         $this->syncAdminAccess($request, $profile);
@@ -78,6 +87,7 @@ class PeopleProfileController extends Controller
     public function update(Request $request, PeopleProfile $peopleProfile): RedirectResponse
     {
         $peopleProfile->update($this->validated($request));
+        $this->syncOrganization($request, $peopleProfile);
         $this->syncPhoto($request, $peopleProfile);
         $this->syncReferral($peopleProfile);
         $this->syncAdminAccess($request, $peopleProfile);
@@ -126,6 +136,17 @@ class PeopleProfileController extends Controller
     {
         $data = $request->validate([
             'profile_type' => ['required', Rule::exists('people_profile_types', 'slug')->where('is_active', true)],
+            'is_employee' => ['nullable', 'boolean'],
+            'primary_department_id' => ['nullable', 'exists:departments,id'],
+            'primary_designation_id' => ['nullable', 'exists:designations,id'],
+            'assignments' => ['nullable', 'array'],
+            'assignments.*.department_id' => ['required', 'exists:departments,id'],
+            'assignments.*.designation_id' => ['required', 'exists:designations,id'],
+            'assignments.*.assignment_label' => ['nullable', 'string', 'max:160'],
+            'assignments.*.is_active' => ['nullable', 'boolean'],
+            'additional_responsibilities' => ['nullable', 'array'],
+            'additional_responsibilities.*.description' => ['required', 'string', 'max:5000'],
+            'additional_responsibilities.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'name' => ['required', 'string', 'max:160'],
             'title' => ['nullable', 'string', 'max:160'],
             'email' => [
@@ -176,6 +197,7 @@ class PeopleProfileController extends Controller
         ]);
 
         $data['is_active'] = $request->boolean('is_active');
+        $data['is_employee'] = $request->boolean('is_employee');
         $data['admin_enabled'] = in_array($data['profile_type'], [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN], true);
         $data['admin_role'] = $data['profile_type'] === User::ROLE_SUPER_ADMIN
             ? User::ROLE_SUPER_ADMIN
@@ -191,6 +213,38 @@ class PeopleProfileController extends Controller
         unset($data['photo'], $data['admin_password'], $data['admin_password_confirmation'], $data['root_admin_passcode'], $data['is_root_admin']);
 
         return $data;
+    }
+
+    private function syncOrganization(Request $request, PeopleProfile $profile): void
+    {
+        $departmentId = $request->input('primary_department_id');
+        $designationId = $request->input('primary_designation_id');
+        if ($designationId && ! Designation::whereKey($designationId)->where('department_id', $departmentId)->exists()) {
+            abort(422, 'The primary designation must belong to the selected department.');
+        }
+        $profile->update(['primary_department_id' => $departmentId ?: null, 'primary_designation_id' => $designationId ?: null]);
+        $profile->assignments()->delete();
+        foreach ($request->input('assignments', []) as $assignment) {
+            if (! Designation::whereKey($assignment['designation_id'] ?? null)->where('department_id', $assignment['department_id'] ?? null)->exists()) {
+                abort(422, 'Each assignment designation must belong to its department.');
+            }
+            EmployeeAssignment::create([
+                'people_profile_id' => $profile->id,
+                'department_id' => $assignment['department_id'],
+                'designation_id' => $assignment['designation_id'],
+                'assignment_label' => $assignment['assignment_label'] ?? null,
+                'is_active' => (bool) ($assignment['is_active'] ?? true),
+            ]);
+        }
+        $profile->additionalResponsibilities()->delete();
+        foreach ($request->input('additional_responsibilities', []) as $index => $duty) {
+            EmployeeResponsibility::create([
+                'people_profile_id' => $profile->id,
+                'description' => $duty['description'],
+                'sort_order' => (int) ($duty['sort_order'] ?? $index),
+                'is_active' => true,
+            ]);
+        }
     }
 
     private function validatedType(Request $request): array
@@ -229,14 +283,9 @@ class PeopleProfileController extends Controller
             return;
         }
 
-        $directory = public_path('images/people-profiles');
-        File::ensureDirectoryExists($directory);
-
         $file = $request->file('photo');
-        $name = Str::slug($profile->name ?: 'profile').'-'.$profile->id.'-'.time().'.'.$file->extension();
-        $file->move($directory, $name);
-
-        $profile->update(['photo_path' => 'images/people-profiles/'.$name]);
+        $optimized = app(MediaOptimizationService::class)->optimize($file, 'people-profiles', 'card');
+        $profile->update(['photo_path' => 'storage/'.$optimized['path']]);
     }
 
     private function syncReferral(PeopleProfile $profile): void

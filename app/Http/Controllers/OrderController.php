@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\AdminNotificationService;
 use App\Services\OrderNumberService;
+use App\Services\PremiumPackagingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
@@ -35,7 +36,8 @@ class OrderController extends Controller
     public function store(
         Request $request,
         AdminNotificationService $notifications,
-        OrderNumberService $orderNumbers
+        OrderNumberService $orderNumbers,
+        PremiumPackagingService $packaging
     ): JsonResponse {
         $cart = collect(
             $request->session()->get('cart', [])
@@ -124,9 +126,11 @@ class OrderController extends Controller
                     $cart,
                     $brand,
                     $deliveryCharge,
-                    $orderNumbers
+                    $orderNumbers,
+                    $packaging
                 ): Order {
                     $itemsTotal = 0;
+                    $packagingTotal = 0;
     
                     /*
                     |--------------------------------------------------------------------------
@@ -139,6 +143,7 @@ class OrderController extends Controller
                             array $cartItem
                         ) use (
                             &$itemsTotal,
+                            &$packagingTotal,
                             $brand
                         ): array {
                             $productId = (int) (
@@ -167,6 +172,10 @@ class OrderController extends Controller
                                     ?? ''
                                 )
                             );
+
+                            $packagingType = ($cartItem['packaging_type'] ?? 'normal') === 'premium'
+                                ? 'premium'
+                                : 'normal';
     
                             if (
                                 !$productId
@@ -205,6 +214,13 @@ class OrderController extends Controller
                                     ], 422)
                                 );
                             }
+
+                            $packagingSelection = $packaging->resolve(
+                                $product,
+                                $packagingType,
+                                isset($cartItem['packaging_tier_id']) ? (int) $cartItem['packaging_tier_id'] : null,
+                                $quantity
+                            );
     
                             $variant = ProductVariant::query()
                                 ->where(
@@ -253,6 +269,8 @@ class OrderController extends Controller
                                 $quantity * $unitPrice,
                                 2
                             );
+                            $packagingCharge = $packagingSelection['charge'];
+                            $packagingLineTotal = round($quantity * $packagingCharge, 2);
     
                             /*
                             |--------------------------------------------------------------------------
@@ -278,6 +296,7 @@ class OrderController extends Controller
                             }
     
                             $itemsTotal += $lineTotal;
+                            $packagingTotal += $packagingLineTotal;
     
                             return [
                                 'product_id' =>
@@ -298,6 +317,16 @@ class OrderController extends Controller
     
                                 'color' =>
                                     $color,
+
+                                'packaging_type' =>
+                                    $packagingType,
+
+                                'packaging_charge' =>
+                                    $packagingCharge,
+                                'packaging_tier_id' => $packagingSelection['tier']?->id,
+                                'packaging_tier_name' => $packagingSelection['tier']?->name,
+                                'packaging_min_pieces' => $packagingSelection['tier']?->min_pieces,
+                                'packaging_max_pieces' => $packagingSelection['tier']?->max_pieces,
     
                                 'quantity' =>
                                     $quantity,
@@ -322,6 +351,8 @@ class OrderController extends Controller
                     |--------------------------------------------------------------------------
                     */
     
+                    $packagingTotal = round($packagingTotal, 2);
+
                     $couponData = $this->resolveCoupon(
                         $request,
                         $brand->id,
@@ -402,7 +433,7 @@ class OrderController extends Controller
                         );
                     }
     
-                    $taxableAmount = max($itemsTotal + $deliveryCharge - $couponDiscount, 0);
+                    $taxableAmount = max($itemsTotal + $packagingTotal + $deliveryCharge - $couponDiscount, 0);
                     $vat = $this->vatBreakdown($taxableAmount);
 
                     $grandTotal = round(
@@ -531,6 +562,9 @@ class OrderController extends Controller
     
                         'items_total' =>
                             $itemsTotal,
+
+                        'packaging_total' =>
+                            $packagingTotal,
     
                         'delivery_charge' =>
                             $deliveryCharge,

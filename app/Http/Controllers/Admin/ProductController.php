@@ -8,6 +8,8 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
+use App\Models\PremiumPackagingTier;
+use App\Services\MediaOptimizationService;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -61,7 +63,9 @@ class ProductController extends Controller
             'brands',
             'categories',
             'products'
-        ));
+        ) + [
+            'defaultPremiumPackagingCharge' => 0,
+        ]);
     }
 
     /*
@@ -156,6 +160,31 @@ class ProductController extends Controller
             'is_sales_badge' =>
                 (bool) $product->is_sales_badge,
 
+            'packaging_type_enabled' =>
+                (bool) $product->packaging_type_enabled,
+
+            'premium_packaging_charge' =>
+                (float) $product->premium_packaging_charge,
+
+            'packaging_tiers' => PremiumPackagingTier::query()
+                ->where('product_id', $product->premium_packaging_tier_override ? $product->id : null)
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (PremiumPackagingTier $tier): array => [
+                    'id' => $tier->id,
+                    'name' => $tier->name,
+                    'min_pieces' => (int) $tier->min_pieces,
+                    'max_pieces' => (int) $tier->max_pieces,
+                    'price' => (float) $tier->price,
+                    'is_active' => (bool) $tier->is_active,
+                ])
+                ->values(),
+
+            'premium_packaging_tier_override' =>
+                (bool) $product->premium_packaging_tier_override,
+
             'status' => $product->status,
 
             'images' => $product->images
@@ -202,6 +231,10 @@ class ProductController extends Controller
                     $product,
                     $validated['variants']
                 );
+                if ($this->shouldPersistProductPackagingTiers($request)) {
+                    $product->update(['premium_packaging_tier_override' => true]);
+                    $this->syncPackagingTiers($product, $request->input('packaging_tiers', []));
+                }
 
                 // Only one image-upload call
                 $this->storeNewImages(
@@ -269,6 +302,10 @@ class ProductController extends Controller
                     $product,
                     $validated['variants']
                 );
+                if ($this->shouldPersistProductPackagingTiers($request)) {
+                    $product->update(['premium_packaging_tier_override' => true]);
+                    $this->syncPackagingTiers($product, $request->input('packaging_tiers', []));
+                }
 
                 $deleteImageIds = $this->parseDeleteImageIds(
                     $request->input(
@@ -357,6 +394,20 @@ class ProductController extends Controller
                 'message' => $exception->getMessage(),
             ], 500);
         }
+    }
+
+    public function resetPackagingTiers(Product $product): JsonResponse
+    {
+        DB::transaction(function () use ($product): void {
+            PremiumPackagingTier::query()->where('product_id', $product->id)->delete();
+            $product->update(['premium_packaging_tier_override' => false]);
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Product packaging tiers reset to the shared defaults.',
+            'packaging_tiers' => PremiumPackagingTier::shared()->get(),
+        ]);
     }
 
     /*
@@ -612,6 +663,24 @@ class ProductController extends Controller
                 'boolean',
             ],
 
+            'packaging_type_enabled' => [
+                'nullable',
+                'boolean',
+            ],
+            'premium_packaging_tier_override' => ['nullable', 'boolean'],
+
+            'premium_packaging_charge' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:999999.99',
+            ],
+            'packaging_tiers' => ['nullable', 'array'],
+            'packaging_tiers.*.name' => ['required', 'string', 'max:100'],
+            'packaging_tiers.*.min_pieces' => ['required', 'integer', 'min:1'],
+            'packaging_tiers.*.max_pieces' => ['required', 'integer', 'gte:packaging_tiers.*.min_pieces'],
+            'packaging_tiers.*.price' => ['required', 'numeric', 'min:0'],
+
             'status' => [
                 'required',
                 Rule::in([
@@ -740,6 +809,23 @@ class ProductController extends Controller
             $salePrice = null;
         }
 
+        $packagingTypeEnabled = $request->boolean(
+            'packaging_type_enabled'
+        );
+
+        $premiumPackagingCharge = round(
+            max(0, (float) ($validated['premium_packaging_charge'] ?? 0)),
+            2
+        );
+
+        $tiers = collect($validated['packaging_tiers'] ?? [])->values();
+        $ranges = $tiers->map(fn (array $tier): array => [(int) $tier['min_pieces'], (int) $tier['max_pieces']])->sortBy(0)->values();
+        for ($i = 1; $i < $ranges->count(); $i++) {
+            if ($ranges[$i][0] <= $ranges[$i - 1][1]) {
+                abort(422, 'Premium packaging tier ranges must not overlap.');
+            }
+        }
+
         return [
             'brand_id' => (int) $validated['brand_id'],
             'category_id' => (int) $validated['category_id'],
@@ -796,6 +882,13 @@ class ProductController extends Controller
                 'is_sales_badge'
             ),
 
+            'packaging_type_enabled' => $packagingTypeEnabled,
+
+            'premium_packaging_charge' =>
+                $premiumPackagingCharge,
+
+            'premium_packaging_tier_override' => $request->boolean('premium_packaging_tier_override'),
+
             'status' => $validated['status'],
         ];
     }
@@ -805,6 +898,57 @@ class ProductController extends Controller
 | Color and size variants
 |--------------------------------------------------------------------------
 */
+
+private function syncPackagingTiers(Product $product, array $tiers): void
+{
+    PremiumPackagingTier::query()->where('product_id', $product->id)->delete();
+
+    foreach (array_values($tiers) as $index => $tier) {
+        PremiumPackagingTier::query()->create([
+            'product_id' => $product->id,
+            'name' => trim($tier['name']),
+            'min_pieces' => (int) $tier['min_pieces'],
+            'max_pieces' => (int) $tier['max_pieces'],
+            'price' => round((float) $tier['price'], 2),
+            'sort_order' => $index,
+            'is_active' => true,
+        ]);
+    }
+}
+
+private function shouldPersistProductPackagingTiers(Request $request): bool
+{
+    if (!$request->has('packaging_tiers')) {
+        return false;
+    }
+
+    if ($request->boolean('premium_packaging_tier_override')) {
+        return true;
+    }
+
+    $submitted = collect($request->input('packaging_tiers', []))
+        ->values()
+        ->map(fn (array $tier): array => [
+            'name' => trim((string) ($tier['name'] ?? '')),
+            'min_pieces' => (int) ($tier['min_pieces'] ?? 0),
+            'max_pieces' => (int) ($tier['max_pieces'] ?? 0),
+            'price' => number_format((float) ($tier['price'] ?? 0), 2, '.', ''),
+        ])
+        ->all();
+
+    $defaults = PremiumPackagingTier::shared()
+        ->get(['name', 'min_pieces', 'max_pieces', 'price'])
+        ->map(fn (PremiumPackagingTier $tier): array => [
+            'name' => trim((string) $tier->name),
+            'min_pieces' => (int) $tier->min_pieces,
+            'max_pieces' => (int) $tier->max_pieces,
+            'price' => number_format((float) $tier->price, 2, '.', ''),
+        ])
+        ->values()
+        ->all();
+
+    return $submitted !== $defaults;
+}
 
 private function syncVariants(
     Product $product,
@@ -994,16 +1138,15 @@ private function generateVariantSku(
             ->where('is_primary', true)
             ->exists();
 
+        $optimizer = app(MediaOptimizationService::class);
         foreach (
             $request->file('images', []) as $index => $file
         ) {
+            $optimized = $optimizer->optimize($file, 'products/'.$product->id, 'large');
             ProductImage::create([
                 'product_id' => $product->id,
 
-                'image' => $file->store(
-                    'products/'.$product->id,
-                    'public'
-                ),
+                'image' => $optimized['path'],
 
                 'sort_order' =>
                     $currentMaximum + $index + 1,
@@ -1163,6 +1306,20 @@ private function generateVariantSku(
             'is_featured' => (bool) $product->is_featured,
             'is_new_arrival' => (bool) $product->is_new_arrival,
             'is_sales_badge' => (bool) $product->is_sales_badge,
+            'packaging_type_enabled' => (bool) $product->packaging_type_enabled,
+            'premium_packaging_charge' => (float) $product->premium_packaging_charge,
+            'packaging_tiers' => PremiumPackagingTier::query()
+                ->where('product_id', $product->premium_packaging_tier_override ? $product->id : null)
+                ->where('is_active', true)
+                ->orderBy('sort_order')->orderBy('id')->get()->map(fn ($tier): array => [
+                'id' => $tier->id,
+                'name' => $tier->name,
+                'min_pieces' => $tier->min_pieces,
+                'max_pieces' => $tier->max_pieces,
+                'price' => (float) $tier->price,
+                'is_active' => (bool) $tier->is_active,
+            ])->values(),
+            'premium_packaging_tier_override' => (bool) $product->premium_packaging_tier_override,
             'status' => $product->status,
 
             'primary_image_url' => $primaryImage
@@ -1170,4 +1327,5 @@ private function generateVariantSku(
                 : null,
         ];
     }
+
 }

@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
@@ -70,6 +71,11 @@ class User extends Authenticatable
             self::class,
             'permissions_updated_by'
         );
+    }
+
+    public function peopleProfile(): HasOne
+    {
+        return $this->hasOne(PeopleProfile::class, 'user_id');
     }
 
     public static function permissionKeys(): array

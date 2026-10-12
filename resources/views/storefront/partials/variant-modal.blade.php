@@ -146,27 +146,52 @@
                     id="variantSelectionList"
                 ></div>
             </section>
+
+            <section
+                class="packaging-option-section"
+                id="variantPackagingSection"
+                hidden
+            >
+                <div class="packaging-section-heading">
+                    <div>
+                        <h3>Packaging</h3>
+                        <p>Choose how you'd like your order packaged.</p>
+                    </div>
+                </div>
+
+                <div class="packaging-choice-row">
+                    <button type="button" class="packaging-choice-button selected" data-packaging-type="normal">
+                        <strong>Normal Packaging</strong>
+                        <small class="packaging-free-label">FREE</small>
+                        <small>Included with your order</small>
+                    </button>
+
+                    <button type="button" class="packaging-choice-button premium" data-packaging-type="premium">
+                        <strong>Premium Packaging</strong>
+                        <small class="packaging-premium-price" data-packaging-premium-price></small>
+                        <small>Upgrade your packaging</small>
+                        <small class="packaging-selected-tier" data-packaging-selected-tier hidden></small>
+                    </button>
+                </div>
+
+                <div class="premium-packaging-tier-chooser" id="premiumPackagingTierChooser" hidden>
+                    <small class="packaging-selected-tier" data-packaging-selected-tier hidden></small>
+                </div>
+            </section>
+
+            <div class="variant-modal-summary">
+                <div>
+                    <span>Quantity</span>
+                    <strong id="variantTotalQuantity">0</strong>
+                </div>
+                <div>
+                    <span>Total Price</span>
+                    <strong id="variantTotalPrice">৳0</strong>
+                </div>
+            </div>
         </div>
 
         <div class="product-option-footer">
-            <div class="variant-modal-summary">
-                <div>
-                    <span>Total Quantity</span>
-
-                    <strong id="variantTotalQuantity">
-                        0
-                    </strong>
-                </div>
-
-                <div>
-                    <span>Total Price</span>
-
-                    <strong id="variantTotalPrice">
-                        ৳0
-                    </strong>
-                </div>
-            </div>
-
             <small
                 class="variant-general-error"
                 id="variantGeneralError"
@@ -180,5 +205,48 @@
                 Add Selected Items to Cart
             </button>
         </div>
+    </div>
+</div>
+
+<div
+    class="storefront storefront-{{ $brand->slug ?? 'grey-stone' }} store-modal packaging-info-modal"
+    id="packagingInfoModal"
+    aria-hidden="true"
+>
+    <div
+        class="store-modal-backdrop"
+        data-close-packaging-info
+    ></div>
+
+    <div
+        class="store-modal-dialog packaging-info-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="packagingInfoTitle"
+    >
+        <button
+            type="button"
+            class="store-modal-close"
+            data-close-packaging-info
+            aria-label="Close packaging information"
+        >
+            ×
+        </button>
+
+        <h2 id="packagingInfoTitle">
+            <span data-packaging-info-context>Premium Packaging</span>
+        </h2>
+
+        <img
+            src="{{ asset('images/storefront/packaging-comparison.jpg') }}"
+            alt="Normal and premium packaging comparison"
+        >
+        <p class="packaging-modal-order-label">Your Order</p>
+        <p class="packaging-modal-order" data-packaging-modal-order></p>
+        <h3 class="packaging-modal-tier-heading">Choose Your Premium Packaging</h3>
+        <div class="packaging-tier-options" data-packaging-tier-options></div>
+        <div class="packaging-modal-tier-content" data-packaging-modal-tiers hidden></div>
+        <div class="packaging-modal-breakdown" data-packaging-breakdown hidden></div>
+        <button type="button" class="packaging-confirm-button" data-confirm-packaging>Confirm Premium Packaging</button>
     </div>
 </div>

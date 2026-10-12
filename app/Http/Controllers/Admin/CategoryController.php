@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use App\Services\MediaOptimizationService;
 use Illuminate\View\View;
 
 class CategoryController extends Controller
@@ -104,12 +105,7 @@ class CategoryController extends Controller
         );
 
         if ($request->hasFile('image')) {
-            $validated['image'] = $request
-                ->file('image')
-                ->store(
-                    'categories',
-                    'public'
-                );
+            $validated['image'] = app(MediaOptimizationService::class)->optimize($request->file('image'), 'categories', 'card')['path'];
         }
 
         $category = Category::query()
@@ -157,12 +153,7 @@ class CategoryController extends Controller
         $newImage = null;
 
         if ($request->hasFile('image')) {
-            $newImage = $request
-                ->file('image')
-                ->store(
-                    'categories',
-                    'public'
-                );
+            $newImage = app(MediaOptimizationService::class)->optimize($request->file('image'), 'categories', 'card')['path'];
 
             $validated['image'] = $newImage;
         } else {

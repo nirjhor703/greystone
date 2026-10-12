@@ -284,6 +284,8 @@
                     @forelse($settlementRows as $row)
                         @php
                             $isPaid = in_array((int) $row['investor']->id, $settlementPaidInvestorIds, true);
+                            $grossInvestorPayable = round(((float) $profitPreview * (float) $row['share_percent']) / 100, 2);
+                            $investorTaxDeduction = max(0, round($grossInvestorPayable - (float) $row['payable'], 2));
                         @endphp
                         <article>
                             <strong>{{ $row['investor']->name }}</strong>
@@ -299,6 +301,7 @@
                                     data-investor-id="{{ $row['investor']->id }}"
                                     data-investor-name="{{ $row['investor']->name }}"
                                     data-payable="{{ number_format($row['payable'], 2) }}"
+                                    data-tax-deduction="{{ number_format($investorTaxDeduction, 2) }}"
                                     data-share="{{ number_format($row['share_percent'], 4) }}"
                                 >
                                     Create This Payout
@@ -676,6 +679,10 @@
                         <strong>{{ \Carbon\CarbonImmutable::parse($settlementMonth.'-01')->format('F Y') }}</strong>
                         <span>Payable</span>
                         <strong id="settlementInvestorPayable">৳0.00</strong>
+                        @if($vatEnabled)
+                            <span>Tax Cut</span>
+                            <strong id="settlementInvestorTaxDeduction">৳0.00</strong>
+                        @endif
                         <span>Share</span>
                         <strong id="settlementInvestorShare">0%</strong>
                     </div>

@@ -90,7 +90,7 @@ class SteadfastCourierService
             'alternative_phone' => $order->alternative_phone,
             'recipient_email' => $order->customer_email,
             'recipient_address' => $order->full_address,
-            'cod_amount' => (float) $order->grand_total,
+            'cod_amount' => $order->dueAmount(),
             'note' => $order->order_note,
             'item_description' => $this->itemDescription($order),
             'total_lot' => (int) $order->items->sum('quantity'),

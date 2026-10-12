@@ -1191,6 +1191,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     Qty ${Number(item.quantity)}
                     ×
                     ${money(item.unit_price)}
+                    ${
+                        item.packaging_label
+                            ? `${compact ? '·' : '<br>'}${escapeHtml(item.packaging_label)}`
+                            : ''
+                    }
                 </p>
             </div>
             <strong>${money(item.line_total)}</strong>

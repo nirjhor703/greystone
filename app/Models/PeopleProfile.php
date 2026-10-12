@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PeopleProfile extends Model
 {
@@ -17,6 +18,9 @@ class PeopleProfile extends Model
 
     protected $fillable = [
         'profile_type',
+        'is_employee',
+        'primary_department_id',
+        'primary_designation_id',
         'name',
         'title',
         'photo_path',
@@ -53,6 +57,7 @@ class PeopleProfile extends Model
         'gift_balance' => 'decimal:2',
         'joining_date' => 'date',
         'admin_enabled' => 'boolean',
+        'is_employee' => 'boolean',
         'admin_permissions' => 'array',
         'permission_override_enabled' => 'boolean',
         'referral_enabled' => 'boolean',
@@ -74,6 +79,11 @@ class PeopleProfile extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function primaryDepartment(): BelongsTo { return $this->belongsTo(Department::class, 'primary_department_id'); }
+    public function primaryDesignation(): BelongsTo { return $this->belongsTo(Designation::class, 'primary_designation_id'); }
+    public function assignments(): HasMany { return $this->hasMany(EmployeeAssignment::class); }
+    public function additionalResponsibilities(): HasMany { return $this->hasMany(EmployeeResponsibility::class); }
 
     public function typeLabel(): string
     {

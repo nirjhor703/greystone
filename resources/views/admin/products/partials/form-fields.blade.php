@@ -449,6 +449,57 @@
                 </span>
             </button>
         </div>
+
+        <div class="product-toggle-card product-packaging-toggle-card">
+            <input
+                type="hidden"
+                id="{{ $formPrefix }}_packaging_type_enabled"
+                name="packaging_type_enabled"
+                value="0"
+            >
+
+            <button
+                type="button"
+                class="product-boolean-toggle"
+                data-toggle-target="{{ $formPrefix }}_packaging_type_enabled"
+                aria-pressed="false"
+            >
+                <span class="product-toggle-switch">
+                    <span class="product-toggle-knob"></span>
+                </span>
+
+                <span class="product-toggle-copy">
+                    <strong>Packaging Type</strong>
+                    <small>
+                        Show Normal/Premium packaging selector on storefront.
+                    </small>
+                </span>
+            </button>
+
+        </div>
+
+        <div
+            class="product-packaging-charge-field"
+            data-packaging-charge-field="{{ $formPrefix }}_packaging_type_enabled"
+            hidden
+        >
+            <label>Premium Packaging Tiers</label>
+            <input type="hidden" name="premium_packaging_tier_override" value="0" data-packaging-tier-override="{{ $formPrefix }}">
+            <small class="product-packaging-shared-help" data-packaging-tier-status="{{ $formPrefix }}"></small>
+            <div class="packaging-tier-table-head" aria-hidden="true">
+                <span>Tier name</span>
+                <span>Min pieces</span>
+                <span>Max pieces</span>
+                <span>Price</span>
+                <span>Action</span>
+            </div>
+            <div class="packaging-tier-list" data-packaging-tier-list="{{ $formPrefix }}"></div>
+            @if ($formPrefix === 'edit')
+                <button type="button" class="product-secondary-button" data-reset-packaging-tiers="edit" hidden>Reset to Default</button>
+            @endif
+            <button type="button" class="product-secondary-button" data-add-packaging-tier="{{ $formPrefix }}">+ Add Packaging Tier</button>
+            <input type="hidden" name="premium_packaging_charge" value="0">
+        </div>
     </div>
 </section>
 </div>

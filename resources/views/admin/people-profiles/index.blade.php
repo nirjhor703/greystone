@@ -146,6 +146,22 @@
                             $payload = [
                                 'id' => $profile->id,
                                 'profile_type' => $profile->profile_type,
+                                'is_employee' => (bool) $profile->is_employee,
+                                'primary_department_id' => $profile->primary_department_id,
+                                'primary_designation_id' => $profile->primary_designation_id,
+                                'assignments' => $profile->assignments->map(fn ($assignment) => [
+                                    'id' => $assignment->id,
+                                    'department_id' => $assignment->department_id,
+                                    'designation_id' => $assignment->designation_id,
+                                    'assignment_label' => $assignment->assignment_label,
+                                    'is_active' => (bool) $assignment->is_active,
+                                ])->values()->all(),
+                                'additional_responsibilities' => $profile->additionalResponsibilities->map(fn ($duty) => [
+                                    'id' => $duty->id,
+                                    'description' => $duty->description,
+                                    'sort_order' => (int) $duty->sort_order,
+                                    'is_active' => (bool) $duty->is_active,
+                                ])->values()->all(),
                                 'name' => $profile->name,
                                 'title' => $profile->title,
                                 'email' => $profile->email,
@@ -173,6 +189,22 @@
                                 'role_notes' => $profile->role_notes,
                                 'sort_order' => $profile->sort_order,
                                 'is_active' => $profile->is_active,
+                                'is_employee' => $profile->is_employee,
+                                'primary_department_id' => $profile->primary_department_id,
+                                'primary_designation_id' => $profile->primary_designation_id,
+                                'assignments' => $profile->assignments?->map(fn ($assignment) => [
+                                    'id' => $assignment->id,
+                                    'department_id' => $assignment->department_id,
+                                    'designation_id' => $assignment->designation_id,
+                                    'assignment_label' => $assignment->assignment_label,
+                                    'is_active' => $assignment->is_active,
+                                ])->values()->all() ?? [],
+                                'additional_responsibilities' => $profile->additionalResponsibilities?->map(fn ($responsibility) => [
+                                    'id' => $responsibility->id,
+                                    'description' => $responsibility->description,
+                                    'sort_order' => $responsibility->sort_order,
+                                    'is_active' => $responsibility->is_active,
+                                ])->values()->all() ?? [],
                             ];
                         @endphp
                         <tr>

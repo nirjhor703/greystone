@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', () => {
         .forEach((carousel) => {
             const slider = carousel.querySelector('[data-offer-slider]');
             const nextButton = carousel.querySelector('[data-offer-next]');
+            let autoSlideTimer = null;
+            let isInViewport = true;
+            const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
             if (!slider) {
                 return;
@@ -34,8 +37,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
             nextButton?.addEventListener('click', goNext);
 
-            if (slider.querySelectorAll('.store-poster-card').length > 1) {
-                window.setInterval(goNext, 3000);
+            const stopAutoSlide = () => {
+                window.clearInterval(autoSlideTimer);
+                autoSlideTimer = null;
+            };
+
+            const startAutoSlide = () => {
+                stopAutoSlide();
+                if (!prefersReducedMotion && isInViewport && !document.hidden && slider.querySelectorAll('.store-poster-card').length > 1) {
+                    autoSlideTimer = window.setInterval(goNext, 3000);
+                }
+            };
+
+            if ('IntersectionObserver' in window) {
+                const observer = new IntersectionObserver((entries) => {
+                    isInViewport = entries[0]?.isIntersecting ?? true;
+                    if (isInViewport) {
+                        startAutoSlide();
+                    } else {
+                        stopAutoSlide();
+                    }
+                }, { rootMargin: '120px 0px' });
+                observer.observe(slider);
+            }
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    stopAutoSlide();
+                } else {
+                    startAutoSlide();
+                }
+            });
+
+            if (!prefersReducedMotion) {
+                startAutoSlide();
             }
         });
 });

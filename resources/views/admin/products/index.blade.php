@@ -5,6 +5,24 @@
 @section('page-subtitle', 'Manage multi-brand products and product galleries')
 
 @section('content')
+@php
+    $sharedPackagingTiers = App\Models\PremiumPackagingTier::shared()
+        ->orderBy('min_pieces')
+        ->get()
+        ->map(fn ($tier) => [
+            'id' => $tier->id,
+            'name' => $tier->name,
+            'min_pieces' => (int) $tier->min_pieces,
+            'max_pieces' => (int) $tier->max_pieces,
+            'price' => (float) $tier->price,
+        ])
+        ->values();
+@endphp
+
+<script type="application/json" id="sharedPackagingTierData">
+    @json($sharedPackagingTiers)
+</script>
+
 <div
     id="productCrudPage"
     data-store-url="{{ route('admin.products.store') }}"

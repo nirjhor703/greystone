@@ -7,6 +7,8 @@ use App\Models\Brand;
 use App\Models\Order;
 use App\Models\OrderActivityLog;
 use App\Models\User;
+use App\Models\PeopleProfile;
+use App\Models\Department;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -26,6 +28,9 @@ class EmployeeDashboardController extends Controller
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
+        $employeeProfiles = PeopleProfile::query()->where('is_employee', true)->where('is_active', true)->with('primaryDepartment')->get();
+        $totalEmployees = $employeeProfiles->unique('id')->count();
+        $departmentHeadcounts = Department::query()->where('is_active', true)->withCount(['profiles' => fn ($q) => $q->where('is_employee', true)->where('is_active', true)])->orderBy('sort_order')->get();
         $employeeIds = $employees->pluck('id')->all();
 
         $activityLogs = OrderActivityLog::query()
@@ -219,6 +224,8 @@ class EmployeeDashboardController extends Controller
             'maxRevenue' => $maxRevenue,
             'maxOrders' => $maxOrders,
             'currentUserRow' => $currentUserRow,
+            'totalEmployees' => $totalEmployees,
+            'departmentHeadcounts' => $departmentHeadcounts,
             'summary' => [
                 'employees' => $employees->count(),
                 'active_performers' => $rows

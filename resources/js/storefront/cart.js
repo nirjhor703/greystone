@@ -93,6 +93,18 @@ document.addEventListener('DOMContentLoaded', function () {
         'variantSummaryCount'
     );
 
+    const packagingSection = document.getElementById(
+        'variantPackagingSection'
+    );
+
+    const selectedPackagingOutput = document.getElementById(
+        'variantSelectedPackaging'
+    );
+
+    const packagingInfoModal = document.getElementById(
+        'packagingInfoModal'
+    );
+
     const cartDrawerWrapper = document.getElementById(
         'cartDrawerWrapper'
     );
@@ -155,6 +167,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let selectedAction = 'cart';
     let selectedColor = null;
     let selectedColorHex = '';
+    let selectedPackagingType = 'normal';
+    let selectedPackagingTierId = null;
+    let pendingPackagingTierId = null;
     let selectedSizesByColor = new Map();
     let toastTimer = null;
     let wishlistItems = [];
@@ -663,6 +678,120 @@ document.addEventListener('DOMContentLoaded', function () {
         );
     }
 
+    function getSelectedTotalPieces() {
+        const piecesPerUnit = Math.max(
+            1,
+            Number(selectedProduct?.pieces_per_unit ?? selectedProduct?.piecesPerUnit ?? 1)
+        );
+
+        return getSelectedItems().reduce(
+            function (total, item) {
+                return total + Number(item.quantity || 0) * piecesPerUnit;
+            },
+            0
+        );
+    }
+
+    function setPackagingType(type) {
+        selectedPackagingType = type === 'premium'
+            ? 'premium'
+            : 'normal';
+
+        if (selectedPackagingType === 'normal') selectedPackagingTierId = null;
+
+        document
+            .querySelectorAll('[data-packaging-type]')
+            .forEach(function (button) {
+                button.classList.toggle(
+                    'selected',
+                    button.dataset.packagingType === selectedPackagingType
+                );
+            });
+
+        if (selectedPackagingOutput) {
+            selectedPackagingOutput.textContent =
+                selectedPackagingType === 'premium'
+                    ? 'Premium selected'
+                    : 'Normal selected';
+        }
+
+        const chooser = document.getElementById('premiumPackagingTierChooser');
+        if (chooser) chooser.hidden = selectedPackagingType !== 'premium';
+    }
+
+    function renderPackagingTiers(product) {
+        const options = document.querySelector('[data-packaging-tier-options]');
+        const summary = document.querySelector('[data-packaging-tier-summary]');
+        if (!options) return;
+        const tiers = Array.isArray(product?.packaging_tiers) ? product.packaging_tiers : [];
+        const pieces = getSelectedTotalPieces();
+        const recommended = tiers.find((tier) => pieces >= Number(tier.min_pieces) && pieces <= Number(tier.max_pieces));
+        if (summary) summary.textContent = `${pieces} pieces`;
+        options.innerHTML = tiers.length ? tiers.map((tier) => {
+            const valid = pieces >= Number(tier.min_pieces) && pieces <= Number(tier.max_pieces);
+            return `<button type="button" class="packaging-tier-option ${String(tier.id) === String(pendingPackagingTierId) ? 'selected' : ''}" data-packaging-tier-id="${tier.id}" ${valid ? '' : 'disabled'}>
+                <span><strong>${escapeHtml(tier.name)}</strong><small>${tier.min_pieces}–${tier.max_pieces} pieces${String(tier.id) === String(recommended?.id) ? ' · Recommended' : ''}</small></span><b>৳${Number(tier.price).toFixed(2)}</b>
+            </button>`;
+        }).join('') : `<p class="packaging-tier-empty">Premium packaging price will be calculated from this product.</p>`;
+    }
+
+    function updatePackagingCardCopy(product) {
+        const tiers = Array.isArray(product?.packaging_tiers) ? product.packaging_tiers : [];
+        const premiumLabel = packagingSection?.querySelector('[data-packaging-premium-price]');
+        const selectedLabel = packagingSection?.querySelector('[data-packaging-selected-tier]');
+        const lowestPrice = tiers.reduce((lowest, tier) => Math.min(lowest, Number(tier.price || 0)), Infinity);
+        const selectedTier = tiers.find((tier) => String(tier.id) === String(selectedPackagingTierId));
+
+        if (premiumLabel) {
+            premiumLabel.textContent = tiers.length
+                ? `From ${money(lowestPrice)}`
+                : `From ${money(product?.premium_packaging_charge || 0)}`;
+        }
+        if (selectedLabel) {
+            selectedLabel.textContent = selectedTier
+                ? `${selectedTier.name} · ${selectedTier.min_pieces}–${selectedTier.max_pieces} pieces · ${money(selectedTier.price)}`
+                : '';
+            selectedLabel.hidden = !selectedTier;
+        }
+    }
+
+    function openPackagingInfoModal() {
+        packagingInfoModal?.classList.add('open');
+        packagingInfoModal?.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('store-overlay-open');
+    }
+
+    function openPackagingDetails(type) {
+        const tiers = Array.isArray(selectedProduct?.packaging_tiers) ? selectedProduct.packaging_tiers : [];
+        const pieces = getSelectedTotalPieces();
+        const recommended = tiers.find((tier) => pieces >= Number(tier.min_pieces) && pieces <= Number(tier.max_pieces));
+        pendingPackagingTierId = selectedPackagingTierId || recommended?.id || null;
+        renderPackagingTiers(selectedProduct);
+        const title = packagingInfoModal?.querySelector('[data-packaging-info-context]');
+        if (title) title.textContent = 'Premium Packaging';
+        const orderSummary = packagingInfoModal?.querySelector('[data-packaging-modal-order]');
+        if (orderSummary) orderSummary.textContent = `${pieces} pieces`;
+        renderPackagingBreakdown();
+        openPackagingInfoModal();
+    }
+
+    function renderPackagingBreakdown() {
+        const output = packagingInfoModal?.querySelector('[data-packaging-breakdown]');
+        const tiers = Array.isArray(selectedProduct?.packaging_tiers) ? selectedProduct.packaging_tiers : [];
+        const tier = tiers.find((item) => String(item.id) === String(pendingPackagingTierId));
+        if (!output) return;
+        output.innerHTML = tier
+            ? `<span>Selected Packaging</span><strong>${escapeHtml(tier.name)}</strong><span>Your Order</span><strong>${getSelectedTotalPieces()} pieces</strong><span>Package Range</span><strong>${tier.min_pieces}–${tier.max_pieces} pieces</strong><span>Premium Packaging Charge</span><strong>${money(tier.price)}</strong>`
+            : '';
+        output.hidden = !tier;
+    }
+
+    function closePackagingInfoModal() {
+        packagingInfoModal?.classList.remove('open');
+        packagingInfoModal?.setAttribute('aria-hidden', 'true');
+        removeBodyOverlayIfUnused();
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Variant Modal
@@ -677,6 +806,7 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedAction = action || 'cart';
         selectedColor = null;
         selectedColorHex = '';
+        selectedPackagingType = 'normal';
         selectedSizesByColor = new Map();
 
         if (colorError) {
@@ -741,6 +871,17 @@ document.addEventListener('DOMContentLoaded', function () {
             variantSummaryCount.textContent =
                 '0 items';
         }
+
+        if (packagingSection) {
+            packagingSection.hidden = !product.packaging_type_enabled;
+        }
+
+        updatePackagingCardCopy(product);
+
+        setPackagingType('normal');
+        selectedPackagingTierId = null;
+        pendingPackagingTierId = null;
+        renderPackagingTiers(product);
 
         if (confirmButton) {
             confirmButton.disabled = false;
@@ -818,6 +959,7 @@ document.addEventListener('DOMContentLoaded', function () {
         selectedAction = 'cart';
         selectedColor = null;
         selectedColorHex = '';
+        selectedPackagingType = 'normal';
         selectedSizesByColor = new Map();
 
         removeBodyOverlayIfUnused();
@@ -1072,6 +1214,12 @@ document.addEventListener('DOMContentLoaded', function () {
     
         updateSelectedSizeSummary();
         updateVariantTotal();
+        if (packagingInfoModal?.classList.contains('open')) {
+            const orderSummary = packagingInfoModal.querySelector('[data-packaging-modal-order]');
+            if (orderSummary) orderSummary.textContent = `${getSelectedTotalPieces()} pieces`;
+            renderPackagingTiers(selectedProduct);
+            renderPackagingBreakdown();
+        }
     }
 
     function getSelectedSizeQuantity(size) {
@@ -1445,6 +1593,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         color: group.color,
                         color_hex: group.colorHex,
+                        packaging_type:
+                            productSnapshot.packaging_type_enabled
+                                ? selectedPackagingType
+                                : 'normal',
+                        packaging_tier_id:
+                            productSnapshot.packaging_type_enabled && selectedPackagingType === 'premium'
+                                ? selectedPackagingTierId
+                                : null,
 
                         items: group.items.map(
                             function (item) {
@@ -1772,6 +1928,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const colorHex = normalizeColorHex(
                 item.color_hex || ''
             );
+
+            const packagingLabel = escapeHtml(
+                item.packaging_label || ''
+            );
     
             const cartKey =
                 escapeHtml(item.key || '');
@@ -1866,6 +2026,16 @@ document.addEventListener('DOMContentLoaded', function () {
                                 ? `
                                     <span>
                                         Size: ${size}
+                                    </span>
+                                `
+                                : ''
+                        }
+
+                        ${
+                            packagingLabel
+                                ? `
+                                    <span>
+                                        ${packagingLabel}
                                     </span>
                                 `
                                 : ''
@@ -2160,6 +2330,45 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            const packagingButton =
+                event.target.closest(
+                    '[data-packaging-type]'
+                );
+
+            const confirmPackaging = event.target.closest('[data-confirm-packaging]');
+            if (confirmPackaging) {
+                event.preventDefault();
+                if (pendingPackagingTierId) {
+                    selectedPackagingTierId = pendingPackagingTierId;
+                    selectedPackagingType = 'premium';
+                    updatePackagingCardCopy(selectedProduct);
+                    setPackagingType('premium');
+                    closePackagingInfoModal();
+                }
+                return;
+            }
+
+            const tierButton = event.target.closest('[data-packaging-tier-id]');
+            if (tierButton && !tierButton.disabled) {
+                event.preventDefault();
+                pendingPackagingTierId = Number(tierButton.dataset.packagingTierId);
+                renderPackagingBreakdown();
+                renderPackagingTiers(selectedProduct);
+                return;
+            }
+
+            if (packagingButton) {
+                event.preventDefault();
+                if (packagingButton.dataset.packagingType === 'premium') {
+                    openPackagingDetails('premium');
+                } else {
+                    setPackagingType('normal');
+                    updatePackagingCardCopy(selectedProduct);
+                }
+
+                return;
+            }
+
             const sizeDecreaseButton =
                 event.target.closest(
                     '[data-size-decrease]'
@@ -2278,6 +2487,17 @@ document.addEventListener('DOMContentLoaded', function () {
             button.addEventListener(
                 'click',
                 closeVariantModal
+            );
+        });
+
+    document
+        .querySelectorAll(
+            '[data-close-packaging-info]'
+        )
+        .forEach(function (button) {
+            button.addEventListener(
+                'click',
+                closePackagingInfoModal
             );
         });
 

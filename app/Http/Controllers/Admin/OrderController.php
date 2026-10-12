@@ -11,11 +11,13 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\AdminNotificationService;
 use App\Services\OrderNumberService;
+use App\Services\PremiumPackagingService;
 use App\Services\SteadfastCourierService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Throwable;
@@ -30,7 +32,7 @@ class OrderController extends Controller
             ->get();
 
         $products = Product::query()
-            ->with('brand')
+            ->with(['brand', 'variants'])
             ->where('status', Product::STATUS_ACTIVE)
             ->orderBy('brand_id')
             ->orderBy('name')
@@ -88,7 +90,8 @@ class OrderController extends Controller
 
     public function store(
         Request $request,
-        OrderNumberService $orderNumbers
+        OrderNumberService $orderNumbers,
+        PremiumPackagingService $packaging
     ): JsonResponse
     {
         $validated = $this->validateOrder($request);
@@ -102,17 +105,15 @@ class OrderController extends Controller
                 $brand = Brand::query()
                     ->whereKey((int) $validated['brand_id'])
                     ->firstOrFail();
-                $itemsTotal = $this->itemsTotal(
-                    $validated['items']
-                );
-                $preparedItems = $this->prepareItems(
-                    $validated['items']
-                );
+                $preparedItems = $this->prepareItems($validated['items'], $packaging);
+                $itemsTotal = $this->itemsTotal($preparedItems);
+                $packagingTotal = $this->packagingTotal($preparedItems);
 
                 $order = Order::create([
                     ...$this->orderData(
                         $validated,
-                        $itemsTotal
+                        $itemsTotal,
+                        $packagingTotal
                     ),
                     'order_number' => $this->generateCode('ORD'),
                     'invoice_number' =>
@@ -157,6 +158,7 @@ class OrderController extends Controller
     public function update(
         Request $request,
         Order $order
+        ,PremiumPackagingService $packaging
     ): JsonResponse {
         $validated = $this->validateOrder($request);
 
@@ -168,12 +170,9 @@ class OrderController extends Controller
                 $order->load('items');
                 $oldStatus = $order->status;
                 $oldItems = $order->items->map->toArray()->all();
-                $itemsTotal = $this->itemsTotal(
-                    $validated['items']
-                );
-                $preparedItems = $this->prepareItems(
-                    $validated['items']
-                );
+                $preparedItems = $this->prepareItems($validated['items'], $packaging);
+                $itemsTotal = $this->itemsTotal($preparedItems);
+                $packagingTotal = $this->packagingTotal($preparedItems);
 
                 if ($oldStatus !== Order::STATUS_CANCELLED) {
                     $this->restoreStock($oldItems);
@@ -187,6 +186,7 @@ class OrderController extends Controller
                     $this->orderData(
                         $validated,
                         $itemsTotal,
+                        $packagingTotal,
                         (float) $order->coupon_discount_amount
                     )
                 );
@@ -407,9 +407,18 @@ class OrderController extends Controller
 
         $validated = $request->validate([
             'note' => ['required', 'string', 'max:1000'],
+            'issue_image' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:5120',
+            ],
         ]);
 
         $oldStatus = $order->qc_status ?: Order::QC_NOT_CHECKED;
+        $issueImagePath = $request->hasFile('issue_image')
+            ? $request->file('issue_image')->store('order-qc-issues', 'public')
+            : null;
 
         $order->update([
             'qc_status' => Order::QC_ISSUE,
@@ -423,7 +432,10 @@ class OrderController extends Controller
             OrderActivityLog::ACTION_QC_ISSUE,
             $oldStatus,
             Order::QC_ISSUE,
-            trim($validated['note'])
+            trim($validated['note']),
+            $issueImagePath
+                ? ['issue_image_path' => $issueImagePath]
+                : null
         );
 
         $order->load(['brand', 'items', 'steadfastSentBy', 'qcBy', 'qcResolvedBy', 'confirmedBy']);
@@ -553,7 +565,19 @@ class OrderController extends Controller
                 Rule::in([
                     Order::PAYMENT_UNPAID,
                     Order::PAYMENT_PAID,
+                    Order::PAYMENT_DELIVERY_CHARGE_PAID,
                 ]),
+            ],
+            'delivery_charge_paid' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'required_if:payment_status,'.Order::PAYMENT_DELIVERY_CHARGE_PAID,
+            ],
+            'manual_discount_amount' => [
+                'nullable',
+                'numeric',
+                'min:0',
             ],
             'order_channel' => [
                 'required',
@@ -598,6 +622,11 @@ class OrderController extends Controller
                 'numeric',
                 'min:0',
             ],
+            'items.*.packaging_type' => [
+                'nullable',
+                Rule::in(['normal', 'premium']),
+            ],
+            'items.*.packaging_tier_id' => ['nullable', 'integer'],
         ]);
     }
 
@@ -651,13 +680,24 @@ class OrderController extends Controller
     private function orderData(
         array $validated,
         float $itemsTotal,
+        float $packagingTotal = 0,
         float $couponDiscount = 0
     ): array {
-        $deliveryCharge = $validated['delivery_area']
-            === 'inside_dhaka'
-                ? 80
-                : 130;
-        $vat = $this->vatBreakdown($itemsTotal + $deliveryCharge - $couponDiscount);
+        $deliveryChargePaid = max((float) ($validated['delivery_charge_paid'] ?? 0), 0);
+        $deliveryCharge = $validated['payment_status'] === Order::PAYMENT_DELIVERY_CHARGE_PAID
+            ? $deliveryChargePaid
+            : ($validated['delivery_area'] === 'inside_dhaka' ? 80 : 130);
+        $manualDiscount = max((float) ($validated['manual_discount_amount'] ?? 0), 0);
+        $totalDiscount = $couponDiscount + $manualDiscount;
+        $taxableBeforeVat = $itemsTotal + $packagingTotal + $deliveryCharge - $totalDiscount;
+        $vat = $this->vatBreakdown($taxableBeforeVat);
+        $grandTotal = max(
+            $taxableBeforeVat + $vat['amount'],
+            0
+        );
+        $paidDeliveryCharge = $validated['payment_status'] === Order::PAYMENT_DELIVERY_CHARGE_PAID
+            ? $deliveryCharge
+            : 0;
 
         return [
             'brand_id' => (int) $validated['brand_id'],
@@ -677,14 +717,14 @@ class OrderController extends Controller
                 $this->nullableTrim($validated['order_note'] ?? null),
             'payment_method' => Order::PAYMENT_COD,
             'items_total' => $itemsTotal,
+            'packaging_total' => $packagingTotal,
             'delivery_charge' => $deliveryCharge,
+            'manual_discount_amount' => $manualDiscount,
             'vat_enabled' => $vat['enabled'],
             'vat_percent' => $vat['percent'],
             'vat_amount' => $vat['amount'],
-            'grand_total' => max(
-                $itemsTotal + $deliveryCharge - $couponDiscount + $vat['amount'],
-                0
-            ),
+            'delivery_charge_paid' => $paidDeliveryCharge,
+            'grand_total' => $grandTotal,
             'status' => $validated['status'],
             'payment_status' => $validated['payment_status'],
             'order_channel' => $validated['order_channel'],
@@ -693,7 +733,7 @@ class OrderController extends Controller
         ];
     }
 
-    private function prepareItems(array $items): array
+    private function prepareItems(array $items, PremiumPackagingService $packaging): array
     {
         return collect($items)
             ->map(function (array $item): array {
@@ -703,6 +743,26 @@ class OrderController extends Controller
 
                 $quantity = (int) $item['quantity'];
                 $unitPrice = (float) $item['unit_price'];
+                $packagingType = ($item['packaging_type'] ?? 'normal') === 'premium'
+                    ? 'premium'
+                    : 'normal';
+
+                if ($packagingType === 'premium' && !$product->packaging_type_enabled) {
+                    throw new HttpResponseException(
+                        response()->json([
+                            'status' => 'error',
+                            'message' => "Premium packaging is unavailable for {$product->name}.",
+                        ], 422)
+                    );
+                }
+
+                $packagingSelection = $packaging->resolve(
+                    $product,
+                    $packagingType,
+                    isset($item['packaging_tier_id']) ? (int) $item['packaging_tier_id'] : null,
+                    $quantity
+                );
+                $packagingCharge = $packagingSelection['charge'];
 
                 return [
                     'product_id' => $product->id,
@@ -712,6 +772,12 @@ class OrderController extends Controller
                         $product->primaryImage?->image,
                     'size' => $this->nullableTrim($item['size'] ?? null),
                     'color' => $this->nullableTrim($item['color'] ?? null),
+                    'packaging_type' => $packagingType,
+                    'packaging_charge' => $packagingCharge,
+                    'packaging_tier_id' => $packagingSelection['tier']?->id,
+                    'packaging_tier_name' => $packagingSelection['tier']?->name,
+                    'packaging_min_pieces' => $packagingSelection['tier']?->min_pieces,
+                    'packaging_max_pieces' => $packagingSelection['tier']?->max_pieces,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
                     'total_price' => $quantity * $unitPrice,
@@ -807,6 +873,15 @@ class OrderController extends Controller
         );
     }
 
+    private function packagingTotal(array $items): float
+    {
+        return round(collect($items)->sum(
+            fn (array $item): float =>
+                (int) $item['quantity']
+                * (float) ($item['packaging_charge'] ?? 0)
+        ), 2);
+    }
+
     private function orderPayload(Order $order): array
     {
         return [
@@ -819,6 +894,7 @@ class OrderController extends Controller
                     'product_id' => $item->product_id,
                     'size' => $item->size,
                     'color' => $item->color,
+                    'packaging_type' => $item->packaging_type ?: 'normal',
                     'quantity' => $item->quantity,
                     'unit_price' => (float) $item->unit_price,
                 ])
@@ -850,12 +926,18 @@ class OrderController extends Controller
             'coupon_code' => $order->coupon_code,
             'coupon_discount_amount' =>
                 (float) $order->coupon_discount_amount,
+            'manual_discount_amount' =>
+                (float) $order->manual_discount_amount,
             'items_total' => (float) $order->items_total,
+            'packaging_total' => (float) $order->packaging_total,
             'delivery_charge' => (float) $order->delivery_charge,
+            'delivery_charge_paid' => (float) $order->delivery_charge_paid,
             'vat_enabled' => (bool) $order->vat_enabled,
             'vat_percent' => (float) $order->vat_percent,
             'vat_amount' => (float) $order->vat_amount,
             'grand_total' => (float) $order->grand_total,
+            'paid_amount' => $order->paidAmount(),
+            'due_amount' => $order->dueAmount(),
             'order_channel' => $order->order_channel ?: Order::CHANNEL_ONLINE,
             'order_channel_label' => Order::channelOptions()[$order->order_channel] ?? str($order->order_channel ?: 'online')->title(),
             'order_source' => $order->order_source ?: Order::SOURCE_CART,
@@ -900,6 +982,12 @@ class OrderController extends Controller
                         'old_value' => $log->old_value,
                         'new_value' => $log->new_value,
                         'user' => $log->user?->name,
+                        'issue_image_url' => data_get(
+                            $log->meta,
+                            'issue_image_path'
+                        )
+                            ? Storage::url(data_get($log->meta, 'issue_image_path'))
+                            : null,
                         'created_at' => $log->created_at?->format(
                             'Y-m-d H:i:s'
                         ),

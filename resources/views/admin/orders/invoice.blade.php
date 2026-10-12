@@ -233,6 +233,10 @@
                                 {{ $item->color ?: '-' }}
                                 /
                                 {{ $item->size ?: '-' }}
+                                @if (($item->packaging_type ?? 'normal') === 'premium')
+                                    <br>
+                                    <small>Premium Packaging</small>
+                                @endif
                             </td>
                             <td>{{ $item->quantity }}</td>
                             <td>৳{{ number_format($item->unit_price, 2) }}</td>
@@ -262,6 +266,12 @@
                         <strong>-৳{{ number_format($order->coupon_discount_amount, 2) }}</strong>
                     </div>
                 @endif
+                @if ((float) ($order->manual_discount_amount ?? 0) > 0)
+                    <div>
+                        <span>Manual Discount</span>
+                        <strong>-৳{{ number_format((float) $order->manual_discount_amount, 2) }}</strong>
+                    </div>
+                @endif
                 @if ((float) ($order->vat_amount ?? 0) > 0)
                     <div>
                         <span>Added VAT ({{ number_format((float) $order->vat_percent, 2) }}%)</span>
@@ -271,6 +281,14 @@
                 <div class="grand">
                     <span>Grand Total</span>
                     <strong>৳{{ number_format($order->grand_total, 2) }}</strong>
+                </div>
+                <div>
+                    <span>Paid</span>
+                    <strong>৳{{ number_format($order->paidAmount(), 2) }}</strong>
+                </div>
+                <div>
+                    <span>Due</span>
+                    <strong>৳{{ number_format($order->dueAmount(), 2) }}</strong>
                 </div>
             </div>
         </section>
